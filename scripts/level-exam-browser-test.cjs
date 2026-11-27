@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const { appReady } = require('./app-ready.cjs');
 const BASE = process.env.BASE || 'http://localhost:3100';
-if (!/localhost|127\.0\.0\.1/.test(BASE)) { console.error('Refusing to run: local server only.'); process.exit(2); }
+if (!['localhost','127.0.0.1'].includes(new URL(BASE).hostname) || !['http:','https:'].includes(new URL(BASE).protocol)) { console.error('Refusing to run: local server only.'); process.exit(2); }
 const shot = (page, n) => page.screenshot({ path: `/tmp/claude-0/shots/${n}.png` });
 let fails = 0;
 const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name} ${extra}`); if (!ok) fails++; };
@@ -33,7 +33,7 @@ async function openExam(page, tag) {
 (async () => {
   const browser = await chromium.launch();
   // ===== Desktop =====
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await browser.newContext({ ignoreHTTPSErrors: new URL(BASE).protocol === 'https:', viewport: { width: 1280, height: 800 } });
   await login(ctx);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => { console.log('PAGEERROR', e.message); fails++; });
@@ -83,7 +83,7 @@ async function openExam(page, tag) {
   check('result page shown', await page.getByText('Test yakunlandi').isVisible());
   await shot(page, 'd-09-result');
   // ===== Mobile =====
-  const m = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const m = await browser.newContext({ ignoreHTTPSErrors: new URL(BASE).protocol === 'https:', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await login(m);
   const mp = await m.newPage();
   mp.on('pageerror', (e) => { console.log('MOBILE PAGEERROR', e.message); fails++; });
