@@ -318,7 +318,7 @@ export async function pickGeminiModelsFast(apiKey: string): Promise<string[]> {
 function visibleText(response: any): string {
   const parts: any[] = response?.candidates?.[0]?.content?.parts || [];
   const answer = parts.filter((p) => typeof p?.text === 'string' && !p.thought).map((p) => p.text).join('');
-  return (answer || response?.text || '').trim();
+  return (parts.length ? answer : (response?.text || '')).trim();
 }
 
 /** Gemma has no JSON mode: pull the JSON out of the reply (fences and chatter removed). */
@@ -336,226 +336,69 @@ export async function executeUniversalAi(options: UniversalAiCallOptions): Promi
 }
 
 async function executeUniversalAiUncached(options: UniversalAiCallOptions): Promise<string> {
-  const { systemInstruction, prompt, temperature = 0.2, jsonMode = false, apiKey, maxOutputTokens } = options;
-  const defaultGeminiKey = process.env.GEMINI_API_KEY || '';
-  const effectiveKey = (apiKey || '').trim().replace(/^['"]|['"]$/g, '') || defaultGeminiKey;
-  const config = detectAiProviderAndModel(effectiveKey);
-  const startedAt = Date.now();
-  // Owner's routing applies to the Gemini path (own-key providers keep their direct call).
-  const routed = config.provider === 'gemini';
-  const task: AiTaskId = options.task ?? 'general';
-  const route = routed ? resolveRoute(task, { hasGeminiKey: Boolean(effectiveKey) }) : [];
-  const geminiAt = route.indexOf('gemini');
-  const taskTimeout = routeConfig(task).timeoutMs ?? defaultTimeoutMs(task);
-  const triedFirst = routed ? fallbackIds(geminiAt === -1 ? route : route.slice(0, geminiAt)) : [];
-  const afterGemini = routed ? fallbackIds(geminiAt === -1 ? [] : route.slice(geminiAt + 1)) : [];
-
-  try {
-    // 0. A provider the owner put ahead of Gemini for this task is tried first.
-    if (triedFirst.length > 0) {
-      try {
-        const early = await runFallbackChain({ system: systemInstruction, prompt, temperature, jsonMode, maxTokens: maxOutputTokens, timeoutMs: taskTimeout }, process.env, fetch, (id, msg) => {
-          console.warn(`[ai] ${task} route ${id} failed: ${msg}`);
-          noteAiCall({ model: id, provider: id, ok: false, ms: 0, inTok: 0, outTok: 0, error: msg });
-        }, triedFirst);
-        noteAiCall({ model: early.model, provider: early.provider, ok: true, ms: early.ms, inTok: early.inTok, outTok: early.outTok });
-        return early.text;
-      } catch {
-        // fall through to the next provider in the route
-      }
-    }
-    if (routed && geminiAt === -1) throw new Error('Gemini bu vazifa uchun o‘chirilgan yoki kalitsiz');
-    // 1. Google Gemini via official SDK
-    if (config.provider === 'gemini' && effectiveKey && !geminiAllowed()) {
-      // Owner has not confirmed the Gemini free tier: no Gemini request is sent (the fallback providers answer).
-      throw new CostBlockedError('gemini', 'generateContent', 'FREE_UNVERIFIED');
-    }
-    if (config.provider === 'gemini' && !effectiveKey) {
-      // No Gemini key on this server: do not send a keyless request (it only adds a 403 and a delay); the fallback chain runs below.
-      throw new Error('GEMINI_API_KEY sozlanmagan');
-    }
-    if (config.provider === 'gemini') {
-      assertGeminiAllowed();
-      const ai = new GoogleGenAI({
-        apiKey: effectiveKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
-          }
-        }
-      });
-      const models = usableModels(await pickGeminiModelsFast(effectiveKey)); // the model list is capped at 400 ms: it is never a long wait before the race
-      // Every Gemini model is cooling down: go straight to the fallback providers (the catch below).
-      if (models.length === 0) throw new Error('Gemini modellari vaqtincha mavjud emas');
-      // Every model is tried in parallel (see raceFirst): a slow model no longer holds the answer back.
-      const attemptModel = async (model: string): Promise<string> => {
-        const gemma = isGemmaModel(model);
-        const t0 = Date.now();
+  const { systemInstruction, prompt, temperature = 0.2, jsonMode = false, maxOutputTokens } = options;
+  // Only server-managed, verified-free accounts may generate content. A caller-supplied key
+  // cannot establish its billing status or bypass owner routing.
+  const key = (process.env.GEMINI_API_KEY || '').trim();
+  const task = options.task ?? 'general';
+  const timeoutMs = routeConfig(task).timeoutMs ?? (jsonMode ? AI_TOTAL_DEADLINE_MS : defaultTimeoutMs(task));
+  const signal = AbortSignal.timeout(timeoutMs);
+  const route = resolveRoute(task, { hasGeminiKey: Boolean(key) && geminiAllowed() });
+  let last: unknown = new Error('Bepul AI provayderi mavjud emas');
+  for (const id of route) {
+    if (signal.aborted) break;
+    if (id === 'gemini') {
+      const models = usableModels(await pickGeminiModelsFast(key)).slice(0, 2);
+      const ai = new GoogleGenAI({ apiKey: key });
+      for (const model of models) {
+        if (signal.aborted) break;
+        const start = Date.now();
+        const attempt = AbortSignal.any([signal, AbortSignal.timeout(jsonMode ? 14_000 : 5_000)]);
         try {
-          // Gemma accepts neither a separate system instruction nor a JSON mode: both go into the prompt.
+          assertGeminiAllowed();
+          const gemma = isGemmaModel(model);
           const contents = gemma
-            ? `${systemInstruction ? `${systemInstruction}\n\n---\n\n` : ''}${prompt}${jsonMode ? '\n\nReturn ONLY valid JSON. No markdown fences, no commentary.' : ''}`
+            ? [systemInstruction, prompt, jsonMode ? 'Return ONLY valid JSON.' : ''].filter(Boolean).join('\n\n')
             : prompt;
-          // Gemma: minimal thinking (full thinking makes answers many times slower); if the model rejects the setting, retry without it.
-          const configs: any[] = gemma
-            ? [{ thinkingConfig: { thinkingLevel: 'minimal' }, ...(maxOutputTokens ? { maxOutputTokens } : {}) }, { ...(maxOutputTokens ? { maxOutputTokens } : {}) }]
-            : [
-                // Chat answers: minimal thinking first (much faster); a model that rejects the setting retries without it.
-                // Graded or structured answers keep the model's default reasoning.
-                ...(!jsonMode ? [{ systemInstruction: systemInstruction || undefined, thinkingConfig: { thinkingLevel: 'minimal' }, ...(maxOutputTokens ? { maxOutputTokens } : {}) }] : []),
-                { systemInstruction: systemInstruction || undefined, ...(maxOutputTokens ? { maxOutputTokens } : {}), ...(jsonMode ? { responseMimeType: 'application/json' } : {}) }
-              ];
-          let response: any;
-          for (let ci = 0; ci < configs.length; ci++) {
-            try {
-              const attemptMs = jsonMode || (maxOutputTokens ?? 0) > 1500 ? AI_TIMEOUT_MS : AI_FAST_TIMEOUT_MS;
-              response = await retryTransient(() => withTimeout(ai.models.generateContent({ model, contents, config: configs[ci] }), attemptMs), 2);
-              break;
-            } catch (cfgErr: any) {
-              if (ci === configs.length - 1 || !/thinking|budget|INVALID_ARGUMENT|not supported/i.test(String(cfgErr?.message || cfgErr))) throw cfgErr;
+          const response = await ai.models.generateContent({
+            model, contents,
+            config: {
+              abortSignal: attempt,
+              ...(!gemma && systemInstruction ? { systemInstruction } : {}),
+              ...(!gemma && jsonMode ? { responseMimeType: 'application/json' } : {}),
+              temperature,
+              ...(maxOutputTokens ? { maxOutputTokens } : {})
             }
-          }
-          const text = visibleText(response);
-          if (!text) throw new Error('AI bo‘sh javob qaytardi');
-          noteAiCall({ model, provider: 'gemini', ok: true, ms: Date.now() - t0, ...tokenUsage(response) });
-          return gemma && jsonMode ? extractJson(text) : text;
-        } catch (modelErr: any) {
-          markModelFailed(model, String(modelErr?.message || modelErr));
-          noteAiCall({ model, provider: 'gemini', ok: false, ms: Date.now() - t0, inTok: 0, outTok: 0, error: String(modelErr?.message || modelErr) });
-          console.warn('[ai] model failed:', model, String(modelErr?.message || modelErr).slice(0, 160));
-          throw modelErr;
-        }
-      };
-      return raceFirst(models, attemptModel, { hedgeMs: HEDGE_MS, maxRacers: MAX_RACERS, deadlineMs: jsonMode ? AI_TOTAL_DEADLINE_MS : AI_CHAT_DEADLINE_MS, isFatal: isKeyProblem });
-    }
-
-    // 2. Anthropic Claude REST
-    if (config.provider === 'anthropic') {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
-      try {
-        const res = await fetch(config.endpoint, {
-          method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': effectiveKey,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: config.model,
-            max_tokens: 2048,
-            system: systemInstruction || undefined,
-            messages: [{ role: 'user', content: prompt }],
-            temperature
-          })
-        });
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`Anthropic error (${res.status}): ${errorText}`);
-        }
-        const data = await res.json();
-        noteAiCall({ model: config.model, provider: 'anthropic', ok: true, ms: Date.now() - startedAt, inTok: Number(data.usage?.input_tokens) || 0, outTok: Number(data.usage?.output_tokens) || 0 });
-        return data.content?.[0]?.text || '';
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-
-    // 3. OpenAI / Groq / OpenRouter / DeepSeek
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${effectiveKey}`
-      };
-      if (config.provider === 'openrouter') {
-        headers['HTTP-Referer'] = 'https://edulevel.uz';
-        headers['X-Title'] = 'Edu Level Platform';
-      }
-      const bodyPayload: any = {
-        model: config.model,
-        messages: [
-          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
-          { role: 'user', content: prompt }
-        ],
-        temperature
-      };
-      if (jsonMode) {
-        bodyPayload.response_format = { type: 'json_object' };
-      }
-      const res = await fetch(config.endpoint, {
-        method: 'POST',
-        signal: controller.signal,
-        headers,
-        body: JSON.stringify(bodyPayload)
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        if (config.provider === 'openrouter' && config.model !== 'meta-llama/llama-3.3-70b-instruct:free') {
-          bodyPayload.model = 'meta-llama/llama-3.3-70b-instruct:free';
-          const retryRes = await fetch(config.endpoint, {
-            method: 'POST',
-            signal: controller.signal,
-            headers,
-            body: JSON.stringify(bodyPayload)
           });
-          if (retryRes.ok) {
-            const retryData = await retryRes.json();
-            return retryData.choices?.[0]?.message?.content || '';
-          }
+          let answer = visibleText(response);
+          if (!answer) throw new Error('AI bo‘sh javob berdi');
+          if (jsonMode) { answer = extractJson(answer); JSON.parse(answer); }
+          noteAiCall({ model, provider: id, ok: true, ms: Date.now() - start, ...tokenUsage(response) });
+          return answer;
+        } catch (error) {
+          last = error;
+          markModelFailed(model, error instanceof Error ? error.message : '');
+          noteAiCall({ model, provider: id, ok: false, ms: Date.now() - start, inTok: 0, outTok: 0, error: 'AI so‘rovi muvaffaqiyatsiz' });
         }
-        throw new Error(`${config.label} error (${res.status}): ${errorText}`);
       }
-      const data = await res.json();
-      noteAiCall({ model: bodyPayload.model, provider: config.provider, ok: true, ms: Date.now() - startedAt, inTok: Number(data.usage?.prompt_tokens) || 0, outTok: Number(data.usage?.completion_tokens) || 0 });
-      return data.choices?.[0]?.message?.content || '';
-    } finally {
-      clearTimeout(timeout);
+      continue;
     }
-  } catch (error: any) {
-    console.warn(`Universal AI (${config.label}) notice: ${error?.message}. Failover to system Gemini...`);
-    if (effectiveKey !== defaultGeminiKey && geminiAllowed()) {
-      try {
-        const fallbackAi = new GoogleGenAI({
-          apiKey: defaultGeminiKey,
-          httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build'
-            }
-          }
-        });
-        const fallbackResp = await fallbackAi.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: {
-            systemInstruction: systemInstruction || undefined,
-            temperature,
-            ...(jsonMode ? { responseMimeType: 'application/json' } : {})
-          }
-        });
-        if (fallbackResp.text) {
-          return fallbackResp.text;
-        }
-      } catch (fallbackErr: any) {
-        console.error('System Gemini fallback notice:', fallbackErr?.message);
-      }
-    }
-    // Server-side fallback providers (Groq, DeepSeek, OpenRouter, Mistral) from their own env keys.
-    // Tried only after the primary path failed; a provider without a key is never called.
     try {
-      const chained = await runFallbackChain({ system: systemInstruction, prompt, temperature, jsonMode, maxTokens: maxOutputTokens, timeoutMs: taskTimeout }, process.env, fetch, (id, msg) => {
-        console.warn(`[ai] fallback ${id} failed: ${msg}`);
-        noteAiCall({ model: id, provider: id, ok: false, ms: 0, inTok: 0, outTok: 0, error: msg });
-      }, routed ? afterGemini : undefined);
-      noteAiCall({ model: chained.model, provider: chained.provider, ok: true, ms: chained.ms, inTok: chained.inTok, outTok: chained.outTok });
-      return chained.text;
-    } catch (chainErr: any) {
-      console.error('[ai] fallback chain exhausted:', String(chainErr?.message || chainErr).slice(0, 160));
+      const result = await runFallbackChain({
+        system: systemInstruction, prompt, temperature, jsonMode, maxTokens: maxOutputTokens,
+        timeoutMs: jsonMode ? 14_000 : 5_000, signal
+      }, process.env, fetch, undefined, fallbackIds([id]));
+      let answer = result.text.trim();
+      if (!answer) throw new Error('AI bo‘sh javob berdi');
+      if (jsonMode) { answer = extractJson(answer); JSON.parse(answer); }
+      noteAiCall({ model: result.model, provider: result.provider, ok: true, ms: result.ms, inTok: result.inTok, outTok: result.outTok });
+      return answer;
+    } catch (error) {
+      last = error;
+      noteAiCall({ model: id, provider: id, ok: false, ms: 0, inTok: 0, outTok: 0, error: 'AI so‘rovi muvaffaqiyatsiz' });
     }
-    throw error;
   }
+  throw new AiUnavailableError(task, last);
 }
 
 // -------------------------------------------------------------
