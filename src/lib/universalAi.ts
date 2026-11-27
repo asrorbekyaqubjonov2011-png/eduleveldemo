@@ -151,6 +151,8 @@ export interface UniversalAiCallOptions {
   task?: AiTaskId;
   /** Only for answers that do not depend on who asks (e.g. a word translation): identical calls are answered from a short cache. */
   cacheable?: boolean;
+  /** Caller cancellation; cancelled requests must not continue in the background. */
+  signal?: AbortSignal;
 }
 
 const GEMINI_MODELS = Array.from(
@@ -308,7 +310,7 @@ function extractJson(text: string): string {
 }
 
 export async function executeUniversalAi(options: UniversalAiCallOptions): Promise<string> {
-  if (!options.cacheable || options.apiKey) return executeUniversalAiUncached(options);
+  if (!options.cacheable || options.apiKey || options.signal) return executeUniversalAiUncached(options);
   const key = AnswerCache.key([options.task ?? 'general', options.systemInstruction ?? '', options.prompt, options.temperature ?? 0.2, options.jsonMode ?? false, options.maxOutputTokens ?? 0]);
   return sharedAnswerCache.get(key, () => executeUniversalAiUncached(options));
 }
@@ -320,7 +322,8 @@ async function executeUniversalAiUncached(options: UniversalAiCallOptions): Prom
   const key = (process.env.GEMINI_API_KEY || '').trim();
   const task = options.task ?? 'general';
   const timeoutMs = routeConfig(task).timeoutMs ?? (jsonMode ? AI_TOTAL_DEADLINE_MS : defaultTimeoutMs(task));
-  const signal = AbortSignal.timeout(timeoutMs);
+  const deadline = AbortSignal.timeout(timeoutMs);
+  const signal = options.signal ? AbortSignal.any([deadline, options.signal]) : deadline;
   const route = resolveRoute(task, { hasGeminiKey: Boolean(key) && geminiAllowed() });
   let last: unknown = new Error('Bepul AI provayderi mavjud emas');
   for (const id of route) {
