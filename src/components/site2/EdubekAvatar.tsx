@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useId } from 'react';
 
 export type EdubekMood = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'sad' | 'angry' | 'surprised' | 'sleepy';
 
@@ -31,14 +31,14 @@ const CYAN = '#4fe3ff';
 const PURPLE = '#7b4dff';
 
 /** The face for each mood, drawn inside the visor (x 44–156, y 40–112). */
-function Face({ mood }: { mood: EdubekMood }) {
-  const eye = { fill: CYAN, filter: 'url(#edubek-glow)' };
+function Face({ mood, prefix }: { mood: EdubekMood; prefix: string }) {
+  const eye = { fill: CYAN, filter: `url(#${prefix}-glow)` };
   switch (mood) {
     case 'happy':
       return (
         <g>
-          <path d="M66 76 Q78 60 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
-          <path d="M110 76 Q122 60 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M66 76 Q78 60 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
+          <path d="M110 76 Q122 60 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
           <path d="M84 94 Q100 118 116 94 Z" fill="#ff7fb0" />
         </g>
       );
@@ -49,7 +49,7 @@ function Face({ mood }: { mood: EdubekMood }) {
           <ellipse cx="122" cy="76" rx="8" ry="10" {...eye} />
           <path d="M66 68 L88 60" stroke="#0a0920" strokeWidth="4" strokeLinecap="round" />
           <path d="M134 68 L112 60" stroke="#0a0920" strokeWidth="4" strokeLinecap="round" />
-          <path d="M88 106 Q100 96 112 106" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M88 106 Q100 96 112 106" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
         </g>
       );
     case 'angry':
@@ -59,7 +59,7 @@ function Face({ mood }: { mood: EdubekMood }) {
           <path d="M132 70 L112 76 L112 84 L132 80 Z" {...eye} />
           <path d="M62 58 L88 66" stroke="#ff4d5a" strokeWidth="5" strokeLinecap="round" />
           <path d="M138 58 L112 66" stroke="#ff4d5a" strokeWidth="5" strokeLinecap="round" />
-          <path d="M88 104 Q100 98 112 104" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M88 104 Q100 98 112 104" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
         </g>
       );
     case 'surprised':
@@ -73,8 +73,8 @@ function Face({ mood }: { mood: EdubekMood }) {
     case 'sleepy':
       return (
         <g>
-          <path d="M66 76 Q78 84 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
-          <path d="M110 76 Q122 84 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M66 76 Q78 84 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
+          <path d="M110 76 Q122 84 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
           <path d="M94 98 Q100 102 106 98" stroke={CYAN} strokeWidth="3.5" fill="none" strokeLinecap="round" />
         </g>
       );
@@ -98,7 +98,7 @@ function Face({ mood }: { mood: EdubekMood }) {
             strokeWidth="4"
             fill="none"
             strokeLinecap="round"
-            filter="url(#edubek-glow)"
+            filter={`url(#${prefix}-glow)`}
             className={mood === 'speaking' ? 'edubek-mouth' : undefined}
           />
         </g>
@@ -150,6 +150,7 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
   typing = false,
   animated = true
 }) => {
+  const prefix = 'edubek-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const state: EdubekMood = typing && mood === 'idle' ? 'listening' : mood;
   const [look, setLook] = useState(0); // -1 (left) .. 1 (right), set by the mouse or finger over the avatar
   const [aimed, setAimed] = useState(false); // true while a mouse or finger points at the avatar
@@ -168,7 +169,7 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
       ref={box}
       role="img"
       aria-label={LABEL[state] || LABEL.idle}
-      className="relative shrink-0 select-none"
+      className={'relative shrink-0 select-none vision-avatar ' + (animated ? 'vision-avatar-animated' : '')}
       style={{ width: size, height }}
       onPointerDown={(e) => {
         if (!animated) return;
@@ -184,7 +185,8 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
         const v = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
         setLook(Math.max(-1, Math.min(1, v)));
       }}
-      onPointerUp={() => setAimed(false)}
+      onPointerUp={() => { setAimed(false); setLook(0); }}
+      onPointerCancel={() => { setAimed(false); setLook(0); }}
       onPointerLeave={() => {
         setAimed(false);
         setLook(0);
@@ -192,26 +194,27 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
     >
       <svg width={size} height={height} viewBox="0 0 200 260" className="overflow-visible" aria-hidden="true">
         <defs>
-          <linearGradient id="edubek-shell" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${prefix}-shell`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#ffffff" />
-            <stop offset="1" stopColor="#dcd7f2" />
+            <stop offset="0.52" stopColor="#f2f5ff" />
+            <stop offset="1" stopColor="#b4c4ed" />
           </linearGradient>
-          <linearGradient id="edubek-visor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#2e2766" />
-            <stop offset="1" stopColor="#06051a" />
+          <linearGradient id={`${prefix}-visor`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#23385c" />
+            <stop offset="1" stopColor="#071023" />
           </linearGradient>
-          <linearGradient id="edubek-pod" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#9a7bff" />
-            <stop offset="1" stopColor="#5a33d6" />
+          <linearGradient id={`${prefix}-pod`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#b3a1ff" />
+            <stop offset="1" stopColor="#435bde" />
           </linearGradient>
-          <filter id="edubek-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <filter id={`${prefix}-glow`} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="1.6" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="edubek-soft" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id={`${prefix}-soft`} x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#2a2360" floodOpacity="0.22" />
           </filter>
         </defs>
@@ -219,7 +222,7 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
         {/* Body: torso, neck ring, chest logo */}
         <g className={animated ? 'edubek-body' : undefined} style={{ transformBox: 'view-box', transformOrigin: '100px 240px' }}>
           <ellipse cx="100" cy="252" rx="48" ry="5" fill="#2a2360" opacity="0.14" />
-          <rect x="50" y="138" width="100" height="108" rx="40" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <rect x="50" y="138" width="100" height="108" rx="40" fill={`url(#${prefix}-shell)`} filter={`url(#${prefix}-soft)`} />
           <path d="M52 178 Q50 214 60 240" stroke={PURPLE} strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.7" />
           <path d="M148 178 Q150 214 140 240" stroke={PURPLE} strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.7" />
           <g transform="translate(100 186)">
@@ -232,18 +235,18 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
           </text>
         </g>
         <rect x="80" y="122" width="40" height="14" rx="7" fill="#1e1b3a" />
-        <rect x="84" y="128" width="32" height="3" rx="1.5" fill={CYAN} filter="url(#edubek-glow)" />
+        <rect x="84" y="128" width="32" height="3" rx="1.5" fill={CYAN} filter={`url(#${prefix}-glow)`} />
 
         {/* Arms: each arm is its own group, pivoting at the shoulder */}
         <g className={armLeft || undefined} style={{ transformBox: 'view-box', transformOrigin: '52px 156px' }}>
-          <rect x="30" y="150" width="26" height="62" rx="13" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <rect x="30" y="150" width="26" height="62" rx="13" fill={`url(#${prefix}-shell)`} filter={`url(#${prefix}-soft)`} />
           <rect x="30" y="156" width="26" height="8" rx="4" fill={PURPLE} />
-          <circle cx="43" cy="218" r="11" fill="#ffffff" filter="url(#edubek-soft)" />
+          <circle cx="43" cy="218" r="11" fill="#ffffff" filter={`url(#${prefix}-soft)`} />
         </g>
         <g className={armRight || undefined} style={{ transformBox: 'view-box', transformOrigin: '148px 156px' }}>
-          <rect x="144" y="150" width="26" height="62" rx="13" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <rect x="144" y="150" width="26" height="62" rx="13" fill={`url(#${prefix}-shell)`} filter={`url(#${prefix}-soft)`} />
           <rect x="144" y="156" width="26" height="8" rx="4" fill={PURPLE} />
-          <circle cx="157" cy="218" r="11" fill="#ffffff" filter="url(#edubek-soft)" />
+          <circle cx="157" cy="218" r="11" fill="#ffffff" filter={`url(#${prefix}-soft)`} />
         </g>
 
         {/* Head: antenna, shell, ear pods, visor and face. It turns around the neck. */}
@@ -258,16 +261,16 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
         >
         <g className={headNod || undefined} style={{ transformBox: 'view-box', transformOrigin: '100px 124px' }}>
           <line x1="100" y1="22" x2="100" y2="34" stroke={PURPLE} strokeWidth="5" strokeLinecap="round" />
-          <circle cx="100" cy="16" r="8" fill="url(#edubek-pod)" filter="url(#edubek-glow)" />
-          <rect x="30" y="24" width="140" height="102" rx="50" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <circle cx="100" cy="16" r="8" fill={`url(#${prefix}-pod)`} filter={`url(#${prefix}-glow)`} />
+          <rect x="30" y="24" width="140" height="102" rx="50" fill={`url(#${prefix}-shell)`} filter={`url(#${prefix}-soft)`} />
           <path d="M40 40 Q100 22 160 40" stroke="#ffffff" strokeWidth="5" fill="none" opacity="0.6" strokeLinecap="round" />
-          <circle cx="26" cy="76" r="16" fill="url(#edubek-pod)" />
+          <circle cx="26" cy="76" r="16" fill={`url(#${prefix}-pod)`} />
           <circle cx="26" cy="76" r="9" fill="none" stroke={CYAN} strokeWidth="2" opacity="0.8" />
-          <circle cx="174" cy="76" r="16" fill="url(#edubek-pod)" />
+          <circle cx="174" cy="76" r="16" fill={`url(#${prefix}-pod)`} />
           <circle cx="174" cy="76" r="9" fill="none" stroke={CYAN} strokeWidth="2" opacity="0.8" />
-          <rect x="44" y="40" width="112" height="72" rx="36" fill="url(#edubek-visor)" />
+          <rect x="44" y="40" width="112" height="72" rx="36" fill={`url(#${prefix}-visor)`} />
           <ellipse cx="100" cy="50" rx="46" ry="6" fill="#ffffff" opacity="0.12" />
-          <Face mood={state} />
+          <Face mood={state} prefix={prefix} />
           <Mark mood={state} />
         </g>
         </g>
