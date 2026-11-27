@@ -46,12 +46,8 @@ const GEMMA_MODEL = (process.env.GEMMA_MODEL || 'gemma-4-26b-a4b-it').trim();
 const isGemmaModel = (m: string) => /^gemma/i.test(m);
 
 const AI_TIMEOUT_MS = 25_000;
-/** A short text answer: a model that has not answered in 12 s is left to the race (the other models answer instead). */
-const AI_FAST_TIMEOUT_MS = 12_000;
 /** No new model is tried after this much time has passed since the request began. */
 const AI_TOTAL_DEADLINE_MS = 30_000;
-/** A chat answer that takes longer than this is handed to the fallback providers instead of keeping the student waiting. */
-const AI_CHAT_DEADLINE_MS = 15_000;
 export function withTimeout<T>(p: Promise<T>, ms = AI_TIMEOUT_MS): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(`AI so‘rovi ${Math.round(ms / 1000)} soniyada javob bermadi`)), ms);
@@ -155,23 +151,6 @@ export interface UniversalAiCallOptions {
   task?: AiTaskId;
   /** Only for answers that do not depend on who asks (e.g. a word translation): identical calls are answered from a short cache. */
   cacheable?: boolean;
-}
-
-const TRANSIENT_AI_ERROR = /\b(429|500|502|503|504)\b|RESOURCE_EXHAUSTED|UNAVAILABLE|overloaded/i;
-
-/** Retries short-lived provider failures (rate limit, overload) with a growing pause. */
-async function retryTransient<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
-  let last: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (e: any) {
-      last = e;
-      if (i === attempts - 1 || !TRANSIENT_AI_ERROR.test(String(e?.message || e))) throw e;
-      await new Promise((r) => setTimeout(r, 700 * 2 ** i));
-    }
-  }
-  throw last;
 }
 
 const GEMINI_MODELS = Array.from(
@@ -750,7 +729,6 @@ Ro'yxat, belgi, emoji, qavs ichidagi izoh ishlatma: javob ovoz bilan o'qiladi.`;
 /** Edubek's answers stay short: a shorter answer is also a faster one. */
 export const TUTOR_MAX_TOKENS = 700;
 /** How long a streamed answer may stay silent after its text before it is closed. */
-const STREAM_IDLE_MS = 5000;
 const TALK_MAX_TOKENS = 160;
 
 export async function chatWithAiTutor(params: TutorParams) {
@@ -775,8 +753,6 @@ export async function chatWithAiTutor(params: TutorParams) {
  * (and again for a third). Whoever writes first wins and the others are stopped, so one slow or overloaded
  * model no longer holds the student up.
  */
-const HEDGE_MS = 1_200;
-const MAX_RACERS = 3;
 /**
  * Runs the same answer on several Gemini models at once (see streamTutorAnswer). Used by the tutor, the bot's
  * channel posts and any other answer where a slow model must not hold the student up.
@@ -791,151 +767,22 @@ export async function raceModelAnswer(opts: {
   /** Used when the key is not a Gemini key: those providers answer in one piece. */
   fallback: () => Promise<string>;
 }): Promise<string> {
-  const { systemInstruction, prompt, maxTokens, onText, outer, fallback } = opts;
-  const key = (opts.apiKey || '').trim().replace(/^['"]|['"]$/g, '') || process.env.GEMINI_API_KEY || '';
-  const config = detectAiProviderAndModel(key);
-  if (config.provider !== 'gemini' || !key || !geminiAllowed()) {
-    // Other providers (or no Gemini key at all) answer in one piece: still the same interface.
-    const whole = await fallback();
-    onText(whole);
-    return whole;
-  }
-  const ai = new GoogleGenAI({ apiKey: key, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
-  const models = usableModels(await pickGeminiModelsFast(key)).slice(0, MAX_RACERS);
-  // Every Gemini model is cooling down: answer through the fallback providers in one piece.
-  if (models.length === 0) {
-    const whole = await fallback();
-    onText(whole);
-    return whole;
-  }
-
-  return new Promise<string>((resolve, reject) => {
-    type Racer = { model: string; ctrl: AbortController };
-    const racers: Racer[] = [];
-    let winner: Racer | null = null;
-    let launched = 0;
-    let finished = 0;
-    let settled = false;
-    let lastError: any;
-    let hedge: ReturnType<typeof setTimeout> | undefined;
-
-    const stopOthers = (keep: Racer | null) => racers.forEach((r) => r !== keep && r.ctrl.abort());
-    const fail = (e: any) => {
-      if (settled) return;
-      settled = true;
-      if (hedge) clearTimeout(hedge);
-      stopOthers(null);
-      reject(e instanceof AiUnavailableError ? e : new AiUnavailableError('AI ustoz', e));
-    };
-    outer?.addEventListener('abort', () => {
-      if (hedge) clearTimeout(hedge);
-      stopOthers(null);
-      if (!settled) {
-        settled = true;
-        resolve('');
-      }
-    });
-
-    const run = async (racer: Racer) => {
-      const gemma = isGemmaModel(racer.model);
-      const contents = gemma ? `${systemInstruction}\n\n---\n\n${prompt}` : prompt;
-      const variants: any[] = gemma
-        ? [{ thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: maxTokens }, { maxOutputTokens: maxTokens }]
-        : [{ systemInstruction, temperature: 0.3, maxOutputTokens: maxTokens, thinkingConfig: { thinkingLevel: 'minimal' } }, { systemInstruction, temperature: 0.3, maxOutputTokens: maxTokens }];
-      for (let vi = 0; vi < variants.length; vi++) {
-        const t0 = Date.now();
-        let text = '';
-        let ttft = 0;
-        let last: any;
-        // Some streams stay open after the text is complete. Once the answer has text and nothing new arrives
-        // for a few seconds, the stream is closed and the text kept (the student does not wait ~50 s).
-        let idle: ReturnType<typeof setTimeout> | undefined;
-        const bumpIdle = () => {
-          if (idle) clearTimeout(idle);
-          idle = setTimeout(() => {
-            if (winner === racer && text.trim() && !settled) {
-              settled = true;
-              racer.ctrl.abort();
-              resolve(text);
-            }
-          }, STREAM_IDLE_MS);
-        };
-        try {
-          const stream = await ai.models.generateContentStream({ model: racer.model, contents, config: { ...variants[vi], abortSignal: racer.ctrl.signal } });
-          for await (const chunk of stream) {
-            last = chunk;
-            const parts: any[] = chunk?.candidates?.[0]?.content?.parts || [];
-            const piece = parts.filter((p) => typeof p?.text === 'string' && !p.thought).map((p) => p.text).join('');
-            if (!piece) continue;
-            if (!winner) {
-              winner = racer;
-              ttft = Date.now() - t0;
-              if (hedge) clearTimeout(hedge);
-              stopOthers(racer);
-            }
-            if (winner !== racer || settled) return; // another model was first
-            text += piece;
-            onText(piece);
-            bumpIdle();
-          }
-          if (idle) clearTimeout(idle);
-          if (winner !== racer) return;
-          if (!text.trim()) throw new Error('AI bo‘sh javob qaytardi');
-          noteAiCall({ model: racer.model, provider: 'gemini', ok: true, ms: Date.now() - t0, ttft, ...tokenUsage(last) });
-          if (!settled) {
-            settled = true;
-            resolve(text);
-          }
-          return;
-        } catch (e: any) {
-          if (idle) clearTimeout(idle);
-          if (racer.ctrl.signal.aborted && winner !== racer) return; // stopped because another model won
-          if (settled && winner === racer) return; // the idle watchdog already kept the answer
-          noteAiCall({ model: racer.model, provider: 'gemini', ok: false, ms: Date.now() - t0, inTok: 0, outTok: 0, error: String(e?.message || e) });
-          if (winner === racer && text.trim()) {
-            if (!settled) {
-              settled = true;
-              resolve(text); // the answer was already shown: keep it
-            }
-            return;
-          }
-          lastError = e;
-          markModelFailed(racer.model, String(e?.message || e));
-          if (isKeyProblem(e)) return fail(e);
-          if (vi < variants.length - 1 && /thinking|budget|INVALID_ARGUMENT|not supported/i.test(String(e?.message || e))) continue;
-          break;
-        }
-      }
-      finished += 1;
-      // This racer is out: bring the next one in at once, or give up when nobody is left.
-      if (!winner && !settled) {
-        if (launched < models.length) launch();
-        else if (finished >= launched) fail(lastError);
-      }
-    };
-
-    const launch = () => {
-      if (settled || winner || launched >= models.length) return;
-      const racer: Racer = { model: models[launched++], ctrl: new AbortController() };
-      racers.push(racer);
-      void run(racer);
-      if (launched < models.length) hedge = setTimeout(launch, HEDGE_MS);
-    };
-    launch();
-  });
+  return streamRoutedAnswer('telegram_post', opts.systemInstruction, opts.prompt, opts.maxTokens, opts.onText, opts.outer);
 }
-
 
 export async function streamTutorAnswer(params: TutorParams, onText: (piece: string) => void, outer?: AbortSignal): Promise<string> {
   const { systemInstruction, prompt } = buildTutorRequest(params);
   const maxTokens = params.talk ? TALK_MAX_TOKENS : TUTOR_MAX_TOKENS;
-  const task = params.talk ? 'voice' : 'edubek_chat';
+  return streamRoutedAnswer(params.talk ? 'voice' : 'edubek_chat', systemInstruction, prompt, maxTokens, onText, outer, params.routing);
+}
+
+async function streamRoutedAnswer(task: AiTaskId, systemInstruction: string, prompt: string, maxTokens: number, onText: (piece: string) => void, outer?: AbortSignal, routing?: RoutingConfig): Promise<string> {
   // Use only the server's configured account. An unrelated user-supplied key is not proof of a free tier.
   const key = (process.env.GEMINI_API_KEY || '').trim();
-  const timeoutMs = routeConfig(task, params.routing).timeoutMs ?? defaultTimeoutMs(task);
+  const timeoutMs = routeConfig(task, routing).timeoutMs ?? defaultTimeoutMs(task);
   const deadline = AbortSignal.timeout(timeoutMs);
   const signal = outer ? AbortSignal.any([outer, deadline]) : deadline;
-  const route = resolveRoute(task, { hasGeminiKey: Boolean(key) && geminiAllowed(), cfg: params.routing });
+  const route = resolveRoute(task, { hasGeminiKey: Boolean(key) && geminiAllowed(), cfg: routing });
   let lastError: unknown = new Error('Bepul AI modeli mavjud emas');
   let emitted = false;
   const emit = (piece: string) => {
