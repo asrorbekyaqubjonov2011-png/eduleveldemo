@@ -5,6 +5,8 @@ import { SESSION_COOKIE, OWNER_ID, hashToken } from '@/src/lib/auth/session';
 import { rateLimit } from '@/src/lib/auth/rateLimit';
 import { streamTutorAnswer, type TutorParams } from '@/src/lib/universalAi';
 import { availableFallbacks } from '@/src/lib/aiRouter';
+import { sanitizeRouting } from '@/src/lib/aiRouting';
+import { ensureProviderUsagePersistence } from '@/src/lib/aiUsagePersist';
 import { aiCallStore, readAiStats, recordAiStats, statsDay, type AiCallRecord } from '@/src/lib/aiStats';
 import { aiMinutesFor, costSom, readAiSeconds, type AiLimits } from '@/src/lib/aiTime';
 
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
     const head = tokenHash
       ? await pool.query(
           `select s.is_owner, s.user_id, u.name, u.vip_tier, u.vip_expires_at, u.track,
-                  (select json_object_agg(x.key, x.value) from public.site_settings x where x.key in ('features', 'ai_limits')) as settings
+                  (select json_object_agg(x.key, x.value) from public.site_settings x where x.key in ('features', 'ai_limits', 'ai_routing')) as settings
              from public.sessions s
              left join public.users u on u.id = s.user_id
             where s.token_hash = $1 and s.expires_at > now()`,
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
       lesson = { title: l.title, code: l.lesson_code || undefined, description: l.description, notes: l.notes_markdown || undefined, homework: l.homework || undefined };
     }
 
+    await ensureProviderUsagePersistence();
     const key = (process.env.GEMINI_API_KEY || '').trim();
     // Gemini is the primary provider; without it the fallback providers (Groq, DeepSeek, OpenRouter, Mistral) still answer.
     if (!key && availableFallbacks(process.env).length === 0) {
@@ -98,6 +101,7 @@ export async function POST(req: NextRequest) {
       .filter((m: { text: string }) => m.text.trim());
     const params: TutorParams = {
       userMessage,
+      routing: sanitizeRouting(settings.get('ai_routing')),
       lesson,
       history,
       studentName: owner ? 'Ustoz' : user?.name || 'do‘st',
