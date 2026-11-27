@@ -397,6 +397,7 @@ export interface ChatCallResult {
   model: string;
   text: string;
   ms: number;
+  ttft?: number;
   /** Tokens as reported by the provider (0 when it reports none). */
   inTok: number;
   outTok: number;
@@ -570,9 +571,10 @@ export async function callFallbackProvider(
   const firstTimer = input.onText ? setTimeout(() => firstToken.abort(), 4500) : undefined;
   const signal = AbortSignal.any([overall, firstToken.signal]);
   let emitted = false;
+  let ttft: number | undefined;
   const emit = (piece: string) => {
     signal.throwIfAborted();
-    if (!emitted && piece.trim()) { emitted = true; if (firstTimer) clearTimeout(firstTimer); }
+    if (!emitted && piece.trim()) { emitted = true; ttft = Date.now() - started; if (firstTimer) clearTimeout(firstTimer); }
     input.onText?.(piece);
   };
   const scopedFetch: typeof fetch = (url, init) => fetchImpl(url, {
@@ -673,7 +675,7 @@ export async function callFallbackProvider(
       }
       recordProviderSuccess(id, Date.now() - started, inTok, outTok);
       noteTokens(id, inTok + outTok);
-      return { provider: id, model, text, ms: Date.now() - started, inTok, outTok };
+      return { provider: id, model, text, ms: Date.now() - started, ttft, inTok, outTok };
     }
     }
   }
