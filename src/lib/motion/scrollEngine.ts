@@ -72,7 +72,7 @@ const measure = (now: number): ScrollFrame => {
 
 function frame(now: number) {
   frameId = 0;
-  if (!subscribers.size) return;
+  if (!subscribers.size || document.visibilityState === 'hidden') { lastTime = 0; return; }
   const f = measure(now);
   // Reads first for everyone, then writes: no subscriber's write can force a layout in another subscriber's read.
   for (const s of subscribers) s.read?.(f);
@@ -84,7 +84,7 @@ function frame(now: number) {
 
 /** Starts a frame now (if the loop sleeps) and keeps the loop awake for the settle window. */
 export function wakeScrollEngine(): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || document.visibilityState === 'hidden') return;
   awakeUntil = performance.now() + SETTLE_MS;
   if (!frameId && subscribers.size) frameId = requestAnimationFrame(frame);
 }
@@ -96,6 +96,7 @@ const onResize = () => {
 };
 const onVisibility = () => {
   if (document.visibilityState === 'visible') wakeScrollEngine();
+  else { if (frameId) cancelAnimationFrame(frameId); frameId = 0; lastTime = 0; awakeUntil = 0; }
 };
 
 function listen(on: boolean) {
@@ -108,7 +109,7 @@ function listen(on: boolean) {
   if (on) {
     refreshMax();
     if (typeof ResizeObserver !== 'undefined') {
-      sizeObserver = new ResizeObserver(refreshMax);
+      sizeObserver = new ResizeObserver(() => { refreshMax(); wakeScrollEngine(); });
       sizeObserver.observe(document.documentElement);
       sizeObserver.observe(document.body);
     }
