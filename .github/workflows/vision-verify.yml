@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   browser-and-bot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     services:
       postgres:
@@ -68,6 +68,7 @@ jobs:
       - name: Build actual Next.js app
         run: bun run build
       - name: Launch local services
+        id: launch
         run: |
           mkdir -p /tmp/claude-0/shots vision-smoke-results
           node scripts/fake-telegram.mjs > vision-smoke-results/telegram.log 2>&1 &
@@ -81,13 +82,13 @@ jobs:
       - name: Browser, auth and local burst
         run: node scripts/vision-browser-smoke.cjs
       - name: EduBek public dock
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         run: node scripts/edubek-dock-browser-test.cjs
       - name: Placement exam
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         run: node scripts/level-exam-browser-test.cjs
       - name: Telegram simulated API
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         run: node scripts/telegram-bot-test.mjs
       - name: Upload test evidence
         if: always()
