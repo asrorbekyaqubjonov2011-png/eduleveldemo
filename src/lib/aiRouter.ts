@@ -153,10 +153,13 @@ const waiters = new Map<FallbackProviderId, (() => void)[]>();
 export function providerQueue(id: FallbackProviderId): { active: number; queued: number } {
   return { active: activeCalls.get(id) || 0, queued: (waiters.get(id) || []).length };
 }
-async function acquireSlot(id: FallbackProviderId, max: number, waitMs = 8_000): Promise<() => void> {
+async function acquireSlot(id: FallbackProviderId, max: number, waitMs = 8_000, signal?: AbortSignal): Promise<() => void> {
+  signal?.throwIfAborted();
+  let released = false;
   const release = () => {
-    const q = waiters.get(id) || [];
-    const next = q.shift();
+    if (released) return;
+    released = true;
+    const next = (waiters.get(id) || []).shift();
     if (next) next();
     else activeCalls.set(id, Math.max(0, (activeCalls.get(id) || 1) - 1));
   };
@@ -167,13 +170,18 @@ async function acquireSlot(id: FallbackProviderId, max: number, waitMs = 8_000):
   return new Promise<() => void>((resolve, reject) => {
     const q = waiters.get(id) || [];
     waiters.set(id, q);
-    const entry = () => { clearTimeout(timer); resolve(release); };
-    const timer = setTimeout(() => {
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel); };
+    const entry = () => { cleanup(); resolve(release); };
+    const cancel = () => {
+      cleanup();
       const at = q.indexOf(entry);
       if (at >= 0) q.splice(at, 1);
-      reject(new Error(`${id}: navbat to‘lgan (juda ko‘p bir vaqtdagi so‘rov)`));
-    }, waitMs);
+      reject(signal?.aborted ? signal.reason : new Error(id + ': navbat to‘ldi'));
+    };
+    const timer = setTimeout(cancel, waitMs);
     q.push(entry);
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) cancel();
   });
 }
 
@@ -378,6 +386,10 @@ export interface ChatCallInput {
   jsonMode?: boolean;
   maxTokens?: number;
   timeoutMs?: number;
+  /** Shared caller deadline and cancellation. */
+  signal?: AbortSignal;
+  /** If set, ask for streamed answer text (never hidden reasoning). */
+  onText?: (piece: string) => void;
 }
 
 export interface ChatCallResult {
@@ -484,6 +496,62 @@ export function reasoningParams(id: FallbackProviderId, model: string): Record<s
   return {};
 }
 
+/** Read OpenAI-compatible SSE without treating network chunks as complete events. */
+export async function readChatStream(res: Response, signal: AbortSignal, onText: (piece: string) => void) {
+  if (!res.body) throw new Error('AI oqimi mavjud emas');
+  signal.throwIfAborted();
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '', data: string[] = [], text = '', finish: string | undefined;
+  let inTok = 0, outTok = 0;
+  const abort = () => { void reader.cancel().catch(() => {}); };
+  signal.addEventListener('abort', abort, { once: true });
+  const event = () => {
+    if (!data.length) return false;
+    const raw = data.join('\n'); data = [];
+    if (raw.trim() === '[DONE]') return true;
+    const parsed = JSON.parse(raw);
+    if (parsed.error) throw new Error('AI oqimida provider xatosi');
+    const choice = parsed.choices?.[0];
+    if (choice?.finish_reason) finish = choice.finish_reason;
+    const piece = choice?.delta?.content;
+    if (typeof piece === 'string' && piece) {
+      if (text || piece.trim()) { text += piece; onText(piece); }
+    }
+    if (parsed.usage) {
+      inTok = Math.max(0, Number(parsed.usage.prompt_tokens) || 0);
+      outTok = Math.max(0, Number(parsed.usage.completion_tokens) || 0);
+    }
+    return false;
+  };
+  const line = (raw: string) => {
+    const s = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
+    if (!s) return event();
+    if (s.startsWith('data:')) data.push(s.slice(5).replace(/^ /, ''));
+    return false;
+  };
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const { done, value } = await reader.read();
+      signal.throwIfAborted();
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      if (buffer.length > 2000000) throw new Error('AI oqimi juda katta');
+      let end: number;
+      while ((end = buffer.indexOf('\n')) >= 0) {
+        const s = buffer.slice(0, end);
+        buffer = buffer.slice(end + 1);
+        if (line(s)) return { text, finish, inTok, outTok };
+      }
+      if (done) { if (buffer) line(buffer); event(); return { text, finish, inTok, outTok }; }
+    }
+  } finally {
+    signal.removeEventListener('abort', abort);
+    void reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 /** One OpenAI-compatible call. Tries the provider's model candidates in order; a 404 (unknown model) moves to the next. */
 export async function callFallbackProvider(
   id: FallbackProviderId,
@@ -494,22 +562,40 @@ export async function callFallbackProvider(
   const spec = FALLBACK_PROVIDERS[id];
   const key = (env[spec.envKey] || '').trim();
   if (!key || !providerConfigured(id, env)) throw new Error(`${id}: ${[spec.envKey, ...(spec.extraEnv || [])].join(' / ')} sozlanmagan`);
+  if (!providerAvailable(id)) throw new Error(id + ': provayder vaqtincha bloklangan');
   const started = Date.now();
+  const timeout = AbortSignal.timeout(Math.max(1, input.timeoutMs ?? 12_000));
+  const overall = input.signal ? AbortSignal.any([input.signal, timeout]) : timeout;
+  const firstToken = new AbortController();
+  const firstTimer = input.onText ? setTimeout(() => firstToken.abort(), 4500) : undefined;
+  const signal = AbortSignal.any([overall, firstToken.signal]);
+  let emitted = false;
+  const emit = (piece: string) => {
+    signal.throwIfAborted();
+    if (!emitted && piece.trim()) { emitted = true; if (firstTimer) clearTimeout(firstTimer); }
+    input.onText?.(piece);
+  };
+  const scopedFetch: typeof fetch = (url, init) => fetchImpl(url, {
+    ...init, signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal
+  });
   statOf(id).calls += 1;
-  const releaseSlot = await acquireSlot(id, Math.max(1, Number(env.AI_MAX_CONCURRENCY) || 8)).catch((e: Error) => {
+  const releaseSlot = await acquireSlot(id, Math.max(1, Number(env.AI_MAX_CONCURRENCY) || 8), 1000, signal).catch((e: Error) => {
+    if (firstTimer) clearTimeout(firstTimer);
     recordProviderFailure(id, null, e.message);
     throw e;
   });
   try {
     return await callCandidates();
   } finally {
+    if (firstTimer) clearTimeout(firstTimer);
     releaseSlot();
   }
 
   async function callCandidates(): Promise<ChatCallResult> {
   // Nothing verified free to call: say so, and send nothing.
   let lastError: Error = new Error(`${id}: bepul tasdiqlangan model yo‘q (Free Only: hech narsa yuborilmadi)`);
-  let candidates = await resolveCandidates(id, key, env, fetchImpl);
+  const candidates = await resolveCandidates(id, key, env, scopedFetch);
+  signal.throwIfAborted();
   for (const model of candidates) {
     // Cost gate at send time: a model that is not FREE_VERIFIED is never sent, whatever the caller passed.
     try {
@@ -520,9 +606,8 @@ export async function callFallbackProvider(
     }
     let boost = 1;
     for (let attempt = 0; attempt < 2; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? 12_000);
-    try {
+    signal.throwIfAborted();
+    {
       const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` };
       if (id === 'openrouter') {
         headers['HTTP-Referer'] = 'https://edulevel.uz';
@@ -535,6 +620,7 @@ export async function callFallbackProvider(
           { role: 'user', content: input.prompt }
         ],
         temperature: input.temperature ?? 0.2,
+        ...(input.onText ? { stream: true } : {}),
         ...(input.maxTokens || isReasoningModel(model) ? { max_tokens: maxTokensFor(model, input.maxTokens, boost) } : {}),
         ...reasoningParams(id, model),
         ...(input.jsonMode ? { response_format: { type: 'json_object' } } : {})
@@ -542,7 +628,7 @@ export async function callFallbackProvider(
       let res: Response;
       noteRequestSent(id);
       try {
-        res = await fetchImpl(endpointOf(id, env), { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+        res = await scopedFetch(endpointOf(id, env), { method: 'POST', headers, body: JSON.stringify(body) });
       } catch (err) {
         // Timeout or network failure: counted, and the caller moves on to the next provider.
         const timedOut = err instanceof Error && err.name === 'AbortError';
@@ -562,10 +648,19 @@ export async function callFallbackProvider(
         recordProviderFailure(id, res.status, message);
         throw new Error(message);
       }
-      const data = (await res.json()) as { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
-      const text = (data.choices?.[0]?.message?.content || '').trim();
-      if (!text) {
-        const finish = data.choices?.[0]?.finish_reason;
+      let text: string, finish: string | undefined, inTok: number, outTok: number;
+      if (input.onText && (res.headers.get('content-type') || '').includes('text/event-stream')) {
+        ({ text, finish, inTok, outTok } = await readChatStream(res, signal, emit));
+      } else {
+        const data = (await res.json()) as { choices?: { message?: { content?: string | null }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+        text = (data.choices?.[0]?.message?.content || '').trim();
+        finish = data.choices?.[0]?.finish_reason;
+        inTok = Math.max(0, Math.round(Number(data.usage?.prompt_tokens) || 0));
+        outTok = Math.max(0, Math.round(Number(data.usage?.completion_tokens) || 0));
+        if (text && input.onText) emit(text);
+      }
+      signal.throwIfAborted();
+      if (!text.trim()) {
         // A reasoning model spent every token thinking: one retry with a bigger budget, then the next model.
         if (finish === 'length' && attempt === 0) {
           boost = 3;
@@ -576,13 +671,9 @@ export async function callFallbackProvider(
         markModelBad(id, model, 10 * 60_000);
         break;
       }
-      const inTok = Math.max(0, Math.round(Number(data.usage?.prompt_tokens) || 0));
-      const outTok = Math.max(0, Math.round(Number(data.usage?.completion_tokens) || 0));
       recordProviderSuccess(id, Date.now() - started, inTok, outTok);
       noteTokens(id, inTok + outTok);
       return { provider: id, model, text, ms: Date.now() - started, inTok, outTok };
-    } finally {
-      clearTimeout(timer);
     }
     }
   }
@@ -606,11 +697,16 @@ export async function runFallbackChain(
   const base = availableFallbacks(env);
   const chain = (order ? order.map((id) => base.find((b) => b.id === id)).filter((b): b is (typeof base)[number] => Boolean(b)) : base).filter(({ id }) => providerAvailable(id));
   if (!chain.length) throw new Error('Zaxira AI provayderlari sozlanmagan yoki vaqtincha ishlamayapti');
+  const timeout = AbortSignal.timeout(Math.max(1, input.timeoutMs ?? 12_000));
+  const signal = input.signal ? AbortSignal.any([timeout, input.signal]) : timeout;
   let last: unknown = null;
+  let emitted = false;
   for (const { id } of chain) {
+    signal.throwIfAborted();
     try {
-      return await callFallbackProvider(id, input, env, fetchImpl);
+      return await callFallbackProvider(id, { ...input, signal, onText: input.onText ? piece => { emitted ||= Boolean(piece.trim()); input.onText!(piece); } : undefined }, env, fetchImpl);
     } catch (err) {
+      if (emitted || signal.aborted) throw err;
       last = err;
       onFailure?.(id, err instanceof Error ? err.message : String(err));
     }
@@ -639,6 +735,7 @@ export async function benchmarkProvider(id: FallbackProviderId, env: Env = proce
   const spec = FALLBACK_PROVIDERS[id];
   const key = (env[spec.envKey] || '').trim();
   if (!key || !providerConfigured(id, env)) return { provider: id, model: modelCandidates(id, env)[0], ok: false, ttftMs: null, totalMs: null, chars: 0, message: `${spec.envKey} sozlanmagan` };
+  if (!providerAvailable(id)) return { provider: id, model: '—', ok: false, ttftMs: null, totalMs: null, chars: 0, message: 'Provayder vaqtincha bloklangan' };
   const models = await resolveCandidates(id, key, env, fetchImpl);
   if (!models.length) return { provider: id, model: '—', ok: false, ttftMs: null, totalMs: null, chars: 0, message: `${id}: bepul model topilmadi (Free Only rejimi)` };
   // A 404 means the name is gone: the next verified-free model is measured instead (at most three tries, one at a time; a model that only produced reasoning also counts as failed).
@@ -649,6 +746,9 @@ export async function benchmarkProvider(id: FallbackProviderId, env: Env = proce
 
 async function benchmarkModel(id: FallbackProviderId, model: string, key: string, fetchImpl: typeof fetch, env: Env = process.env): Promise<BenchmarkResult> {
   const spec = FALLBACK_PROVIDERS[id];
+  try { assertFreeCall(id, model, { liveFree: id === 'openrouter' ? currentOpenRouterFree() : null, env }); } catch {
+    return { provider: id, model, ok: false, ttftMs: null, totalMs: null, chars: 0, message: 'Model bepul ekanligi tasdiqlanmagan' };
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   const t0 = Date.now();
