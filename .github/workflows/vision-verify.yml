@@ -1,0 +1,26 @@
+name: EduLevel verification
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [vision-v12-reliability]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: vision-verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
