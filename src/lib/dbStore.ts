@@ -69,6 +69,7 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
     let client;
     try {
       await ensureBootstrap(pool);
+      await ensureProviderUsagePersistence();
       client = await pool.connect();
     } catch (err) {
       console.error('[db] unavailable:', (err as Error).message);
@@ -126,7 +127,6 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
       const baseline = fingerprint(buildRows(db));
       syncVipGift(db); // after the baseline, so what it changes is saved
       setRoutingConfig(db.aiRouting as never); // the running server follows the owner's saved AI routing
-      void ensureProviderUsagePersistence(); // daily provider totals survive restarts
       const loaded = Date.now();
       const response = await runWithContext({ client, db, baseline, session }, () => handler(req, ...args));
       const handled = Date.now();
