@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { hashPassword } from '@/src/lib/auth/password';
 import { validateGradingRules, generateUnlockCode } from '@/src/lib/levelTests/logic';
 
@@ -20,7 +20,7 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
 async function handleGet(req: NextRequest) {
   const auth = requireOwner(req);
   if (auth instanceof NextResponse) return auth;
-  const { rows } = await getPool().query(
+  const { rows } = await requireContext().client.query(
     `select t.*,
             (select count(*)::int from public.level_questions q where q.test_id = t.id) as question_count,
             (select count(*)::int from public.level_attempts a where a.test_id = t.id) as attempt_count,
@@ -55,7 +55,7 @@ async function handlePost(req: NextRequest) {
     entryCode = generateUnlockCode();
     entryHash = hashPassword(entryCode);
   }
-  await getPool().query(
+  await requireContext().client.query(
     `insert into public.level_tests
        (id, kind, title, description, access, entry_code_hash, entry_code_plain, status, time_limit_seconds, attempts_allowed,
         starts_at, ends_at, grading_rules, certificate_enabled, shuffle_questions, require_fullscreen, max_violations, created_by)

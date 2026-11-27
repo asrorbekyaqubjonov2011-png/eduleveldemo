@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireAuth } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { verifyPassword } from '@/src/lib/auth/password';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   const code = typeof body.code === 'string' ? body.code.trim().slice(0, 12) : '';
   if (!/^\d{6}$/.test(code)) return NextResponse.json({ success: false, message: 'Kod 6 xonali raqam bo‘lishi kerak.' }, { status: 400 });
 
-  const pool = getPool();
+  const pool = requireContext().client;
   const res = await pool.query(
     'select id, status, unlock_code_hash, unlock_code_expires_at from public.level_attempts where id = $1 and user_id = $2',
     [id, auth.userId]

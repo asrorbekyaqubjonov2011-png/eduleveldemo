@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireAuth } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,7 @@ async function handleGet(req: NextRequest, ctx: Ctx) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
   const { id } = await ctx.params;
-  const { rows } = await getPool().query(
+  const { rows } = await requireContext().client.query(
     `select distinct on (lower(first_name), lower(last_name), lower(class_name))
             first_name, last_name, class_name, percent, level_label, finished_at, score, max_score
        from public.level_attempts

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { buildDocx, buildXlsx } from '@/src/lib/office/documents';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ async function handleGet(req: NextRequest, ctx: Ctx) {
   const url = new URL(req.url);
   const format = url.searchParams.get('format') === 'docx' ? 'docx' : 'xlsx';
 
-  const pool = getPool();
+  const pool = requireContext().client;
   const test = await pool.query('select title, kind, certificate_enabled from public.level_tests where id = $1', [id]);
   if (!test.rowCount) return NextResponse.json({ success: false, message: 'Test topilmadi.' }, { status: 404 });
   const { rows } = await pool.query(

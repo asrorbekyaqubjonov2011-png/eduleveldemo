@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +32,13 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   const bad = parsed.find((p) => !p.ok);
   if (bad && !bad.ok) return NextResponse.json({ success: false, message: bad.error }, { status: 400 });
 
-  const pool = getPool();
+  const pool = requireContext().client;
   const exists = await pool.query('select 1 from public.level_tests where id = $1', [id]);
   if (!exists.rowCount) return NextResponse.json({ success: false, message: 'Test topilmadi.' }, { status: 404 });
   const start = await pool.query('select coalesce(max(position), -1) + 1 as p from public.level_questions where test_id = $1', [id]);
   let position = Number(start.rows[0]?.p ?? 0);
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
+  const client = pool;
+  {
     for (const p of parsed) {
       if (!p.ok) continue;
       await client.query(
@@ -48,12 +47,6 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
         [`lq-${crypto.randomUUID()}`, id, position++, p.q.prompt, JSON.stringify(p.q.options), p.q.correctIndex, p.q.points, p.q.explanation]
       );
     }
-    await client.query('commit');
-  } catch (err) {
-    await client.query('rollback');
-    throw err;
-  } finally {
-    client.release();
   }
   return NextResponse.json({ success: true, added: parsed.length }, { status: 201 });
 }
@@ -70,7 +63,7 @@ async function handlePut(req: NextRequest, ctx: Ctx) {
   if (!qid) return NextResponse.json({ success: false, message: 'Savol ID kerak.' }, { status: 400 });
   if (!parsed.ok) return NextResponse.json({ success: false, message: parsed.error }, { status: 400 });
   const q = parsed.q;
-  const res = await getPool().query(
+  const res = await requireContext().client.query(
     `update public.level_questions set prompt = $3, options = $4, correct_index = $5, points = $6, explanation = $7
       where id = $1 and test_id = $2 returning id`,
     [qid, id, q.prompt, JSON.stringify(q.options), q.correctIndex, q.points, q.explanation]
@@ -86,7 +79,7 @@ async function handleDelete(req: NextRequest, ctx: Ctx) {
   const body = await req.json().catch(() => null);
   const qid = typeof body?.questionId === 'string' ? body.questionId : '';
   if (!qid) return NextResponse.json({ success: false, message: 'Savol ID kerak.' }, { status: 400 });
-  const res = await getPool().query('delete from public.level_questions where id = $1 and test_id = $2 returning id', [qid, id]);
+  const res = await requireContext().client.query('delete from public.level_questions where id = $1 and test_id = $2 returning id', [qid, id]);
   if (!res.rowCount) return NextResponse.json({ success: false, message: 'Savol topilmadi.' }, { status: 404 });
   return NextResponse.json({ success: true });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { hashPassword } from '@/src/lib/auth/password';
 import { validateGradingRules, generateUnlockCode } from '@/src/lib/levelTests/logic';
 
@@ -18,7 +18,7 @@ async function handleGet(req: NextRequest, ctx: Ctx) {
   const auth = requireOwner(req);
   if (auth instanceof NextResponse) return auth;
   const { id } = await ctx.params;
-  const pool = getPool();
+  const pool = requireContext().client;
   const test = await pool.query('select * from public.level_tests where id = $1', [id]);
   if (!test.rowCount) return bad('Test topilmadi.', 404);
   const questions = await pool.query(
@@ -70,7 +70,7 @@ async function handlePatch(req: NextRequest, ctx: Ctx) {
     values.push(v);
     sets.push(`${col} = $${values.length}`);
   }
-  const pool = getPool();
+  const pool = requireContext().client;
   if (body.status === 'published') {
     const q = await pool.query('select count(*)::int as n from public.level_questions where test_id = $1', [id]);
     if ((q.rows[0]?.n ?? 0) === 0) return bad('Testni nashr qilishdan oldin kamida bitta savol qo‘shing.');
@@ -96,7 +96,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   if (auth instanceof NextResponse) return auth;
   const { id } = await ctx.params;
   const code = generateUnlockCode();
-  const res = await getPool().query(
+  const res = await requireContext().client.query(
     `update public.level_tests set entry_code_hash = $1, entry_code_plain = $3, access = 'code', updated_at = now() where id = $2 returning id`,
     [hashPassword(code), id, code]
   );
@@ -109,7 +109,7 @@ async function handleDelete(req: NextRequest, ctx: Ctx) {
   const auth = requireOwner(req);
   if (auth instanceof NextResponse) return auth;
   const { id } = await ctx.params;
-  const res = await getPool().query('delete from public.level_tests where id = $1 returning id', [id]);
+  const res = await requireContext().client.query('delete from public.level_tests where id = $1 returning id', [id]);
   if (!res.rowCount) return bad('Test topilmadi.', 404);
   return NextResponse.json({ success: true });
 }

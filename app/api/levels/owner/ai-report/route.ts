@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { ownerAssistantReply, AiUnavailableError } from '@/src/lib/universalAi';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ async function handlePost(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { testId?: unknown; question?: unknown };
   const testId = typeof body.testId === 'string' && body.testId ? body.testId : null;
   const question = typeof body.question === 'string' && body.question.trim() ? body.question.trim().slice(0, 500) : 'Ushbu natijalar bo‘yicha qisqa, aniq hisobot yozing.';
-  const pool = getPool();
+  const pool = requireContext().client;
 
   const tests = await pool.query(
     `select t.id, t.title, t.kind, t.status, t.grading_rules,

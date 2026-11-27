@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { hashPassword } from '@/src/lib/auth/password';
 import { generateUnlockCode } from '@/src/lib/levelTests/logic';
 
@@ -25,7 +25,7 @@ async function handleGet(req: NextRequest, ctx: Ctx) {
     params.push(status);
     filter = `and a.status = $2`;
   }
-  const { rows } = await getPool().query(
+  const { rows } = await requireContext().client.query(
     `select a.id, a.first_name, a.last_name, a.class_name, a.status, a.attempt_no, a.started_at, a.finished_at,
             a.deadline_at, a.score, a.max_score, a.percent, a.level_label, a.certificate_code, a.violations,
             a.blocked_at, a.user_id, (a.unlock_code_hash is not null) as has_unlock_code, a.unlock_code_expires_at,
@@ -47,7 +47,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   const attemptId = typeof body.attemptId === 'string' ? body.attemptId : '';
   if (!attemptId) return NextResponse.json({ success: false, message: 'Urinish ID kerak.' }, { status: 400 });
   const code = generateUnlockCode();
-  const res = await getPool().query(
+  const res = await requireContext().client.query(
     `update public.level_attempts
         set unlock_code_hash = $3, unlock_code_plain = $4, unlock_code_expires_at = now() + interval '30 minutes'
       where id = $1 and test_id = $2 and status = 'blocked' returning id`,
@@ -68,7 +68,7 @@ async function handleDelete(req: NextRequest, ctx: Ctx) {
   const body = (await req.json().catch(() => ({}))) as { attemptId?: unknown };
   const attemptId = typeof body.attemptId === 'string' ? body.attemptId : '';
   if (!attemptId) return NextResponse.json({ success: false, message: 'Urinish ID kerak.' }, { status: 400 });
-  const res = await getPool().query('delete from public.level_attempts where id = $1 and test_id = $2 returning id', [attemptId, id]);
+  const res = await requireContext().client.query('delete from public.level_attempts where id = $1 and test_id = $2 returning id', [attemptId, id]);
   if (!res.rowCount) return NextResponse.json({ success: false, message: 'Urinish topilmadi.' }, { status: 404 });
   return NextResponse.json({ success: true });
 }

@@ -85,7 +85,7 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
     // The Telegram webhook reads far more than it writes, so it opens a transaction only when it writes.
     const isWebhook = req.nextUrl.pathname === '/api/telegram/webhook';
     // Level routes use the request transaction for atomic scoring and answer writes.
-    const isLevel = req.nextUrl.pathname.startsWith('/api/levels/');
+    const isLevel = /^\/api\/levels\/attempts\/[^/]+\/?$/.test(req.nextUrl.pathname);
     const isRead = !isLevel && (req.method === 'GET' || req.method === 'HEAD' || req.nextUrl.pathname.startsWith('/api/ai/') || isWebhook);
     const started = Date.now();
     let inTx = false;

@@ -49,7 +49,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   // Resume the open attempt, or report a block. Expired attempts are closed here.
   const open = await pool.query(
     `select * from public.level_attempts where test_id = $1 and user_id = $2 and status in ('in_progress','blocked')
-      order by started_at desc limit 1`,
+      order by started_at desc limit 1 for update`,
     [id, auth.userId]
   );
   const current = open.rows[0];

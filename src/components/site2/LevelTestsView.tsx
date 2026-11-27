@@ -440,7 +440,7 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
       try { localStorage.removeItem(`lvl-flags-${attemptId}`); } catch { /* ignore */ }
     } catch (e) {
       // Network failure: the answers are already saved on the server; nothing is lost and the student can press again.
-      setFinishErr(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'Tarmoq xatosi. Javoblaringiz saqlangan; qayta urinib ko‘ring.');
+      setFinishErr(e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'Tarmoq xatosi. Saqlash holatini tekshirib qayta urinib ko‘ring.');
     } finally {
       finishing.current = false;
       setFinishBusy(false);

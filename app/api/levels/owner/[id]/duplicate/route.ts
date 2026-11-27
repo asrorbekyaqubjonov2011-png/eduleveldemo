@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,14 +12,13 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   const auth = requireOwner(req);
   if (auth instanceof NextResponse) return auth;
   const { id } = await ctx.params;
-  const pool = getPool();
+  const pool = requireContext().client;
   const src = await pool.query('select * from public.level_tests where id = $1', [id]);
   if (!src.rowCount) return NextResponse.json({ success: false, message: 'Test topilmadi.' }, { status: 404 });
   const t = src.rows[0];
   const newId = `lvl-${crypto.randomUUID()}`;
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
+  const client = pool;
+  {
     await client.query(
       `insert into public.level_tests
          (id, kind, title, description, access, status, time_limit_seconds, attempts_allowed, starts_at, ends_at,
@@ -36,13 +35,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
         [`lq-${crypto.randomUUID()}`, newId, q.position, q.prompt, JSON.stringify(q.options), q.correct_index, q.points, q.explanation]
       );
     }
-    await client.query('commit');
     return NextResponse.json({ success: true, id: newId, questions: qs.rowCount }, { status: 201 });
-  } catch (err) {
-    await client.query('rollback');
-    throw err;
-  } finally {
-    client.release();
   }
 }
 

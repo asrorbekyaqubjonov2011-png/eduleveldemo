@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireAuth, getAuth } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 async function handleGet(req: NextRequest) {
   const auth = requireAuth(req);
   if (auth instanceof NextResponse) return auth;
-  const pool = getPool();
+  const pool = requireContext().client;
   const tests = await pool.query(
     `select t.id, t.kind, t.title, t.description, t.access, t.time_limit_seconds, t.attempts_allowed,
             t.starts_at, t.ends_at, t.require_fullscreen, t.max_violations,
