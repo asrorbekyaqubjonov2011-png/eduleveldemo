@@ -27,6 +27,7 @@ export function webhookSecret(): string {
 }
 
 const CALL_TIMEOUT_MS = 8000;
+const MAX_TELEGRAM_RETRY_MS = 2500;
 
 /** Button colours (`style`) are removed for a retry, in case Telegram refuses them. */
 function withoutStyle(value: any): any {
@@ -48,7 +49,9 @@ async function callTelegram(method: string, payload: Record<string, unknown>): P
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS)
   });
-  return res.json().catch(() => ({}));
+  const result = await res.json().catch(() => null);
+  if (!result || typeof result.ok !== 'boolean') throw new Error('Telegram serveridan noto‘g‘ri javob');
+  return result;
 }
 
 /** When Telegram refuses button colours, they are left out for 30 minutes (one failed call, not two per message). */
@@ -59,7 +62,14 @@ const HTML_METHODS = new Set(['sendMessage', 'editMessageText']);
 
 async function sendOnce(method: string, payload: Record<string, unknown>): Promise<any> {
   const coloursOff = coloursRefusedAt > 0 && Date.now() - coloursRefusedAt < 30 * 60 * 1000;
-  let json = await callTelegram(method, coloursOff ? withoutStyle(payload) : payload);
+  const sentPayload = coloursOff ? withoutStyle(payload) : payload;
+  let json = await callTelegram(method, sentPayload);
+  // A 429 explicitly rejects the send, so a bounded retry cannot duplicate a successful message.
+  const retryMs = Number(json.parameters?.retry_after) * 1000;
+  if (!json.ok && json.error_code === 429 && retryMs > 0 && retryMs <= MAX_TELEGRAM_RETRY_MS) {
+    await new Promise(resolve => setTimeout(resolve, retryMs + 100));
+    json = await callTelegram(method, sentPayload);
+  }
   if (!json.ok && !coloursOff && JSON.stringify(payload).includes('"style"') && /button|style|markup|keyboard|reply/i.test(String(json.description || ''))) {
     coloursRefusedAt = Date.now();
     json = await callTelegram(method, withoutStyle(payload));
@@ -94,9 +104,24 @@ export async function downloadTelegramFile(fileId: string, maxBytes = 8 * 1024 *
     try {
       const res = await fetch(`${API}/file/bot${botToken()}/${info.file_path}`, { signal: AbortSignal.timeout(20_000) });
       if (!res.ok) throw new Error('Faylni yuklab bo‘lmadi');
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > maxBytes) throw new Error('Fayl hajmi juda katta');
-      return buf;
+      const length = Number(res.headers.get('content-length'));
+      if (length > maxBytes || !res.body) throw new Error('Fayl hajmi juda katta');
+      const reader = res.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          received += value.length;
+          if (received > maxBytes) throw new Error('Fayl hajmi juda katta');
+          chunks.push(value);
+        }
+        return Buffer.concat(chunks, received);
+      } finally {
+        void reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
     } catch (err) {
       lastErr = err;
       const message = err instanceof Error ? err.message : '';
@@ -106,7 +131,7 @@ export async function downloadTelegramFile(fileId: string, maxBytes = 8 * 1024 *
     }
   }
   const cause = (lastErr as { cause?: { message?: string } })?.cause?.message || (lastErr instanceof Error ? lastErr.message : '');
-  console.error('[telegram] file download failed:', cause);
+  console.error('[telegram] file download failed:', String(cause).replace(/\b\d{6,}:[A-Za-z0-9_-]{15,}/g, '[token]').slice(0, 200));
   throw new Error(lastErr instanceof Error && /hajmi|yuklab bo‘lmadi/.test(lastErr.message) ? lastErr.message : 'Telegram serveri bilan aloqa uzildi');
 }
 
