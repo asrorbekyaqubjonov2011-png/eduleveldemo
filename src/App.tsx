@@ -15,7 +15,7 @@ import { AppBackground } from './components/common/AppBackground';
 import { SiteTransitionWrapper } from './components/common/SiteTransitionWrapper';
 import { CommandPaletteModal } from './components/common/CommandPaletteModal';
 import { ScrollProgress } from './components/ui/motion-primitives';
-import { IntroSplash } from './components/common/IntroSplash';
+import { HeroLoading } from './components/site1/HeroStatic';
 import { ScrollReveals } from './components/ui/ScrollReveals';
 import { SmoothScroll } from './components/ui/SmoothScroll';
 import { BackToTop } from './components/ui/BackToTop';
@@ -24,7 +24,7 @@ import { SectionDots } from './components/site1/SectionDots';
 import { ensureGsap } from './lib/motion';
 
 const AppContent: React.FC = () => {
-  const { activeSite, setActiveSite, currentUser, isOwnerAuth, dbReady, dbError, refreshDb, db } = useApp();
+  const { activeSite, setActiveSite, currentUser, isOwnerAuth, dbReady, dbError, refreshDb } = useApp();
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [studentAuthMode, setStudentAuthMode] = useState<'login' | 'register' | 'creator'>('login');
 
@@ -60,29 +60,16 @@ const AppContent: React.FC = () => {
     else window.setTimeout(warm, 4000);
   }, [currentUser, isOwnerAuth]);
 
-  const [introSeen, setIntroSeen] = useState(() => typeof window !== 'undefined' && sessionStorage.getItem('edulevel_intro_seen') === '1');
-
-  // The owner can switch the opening sequence off: then it is skipped as soon as the data is here.
-  useEffect(() => {
-    if (dbReady && !introSeen && db.features?.introSplash === false) {
-      sessionStorage.setItem('edulevel_intro_seen', '1');
-      setIntroSeen(true);
-    }
-  }, [dbReady, introSeen, db.features?.introSplash]);
-
-  // First load: opening sequence, shown once per browser session, waits for the server data.
-  if (!dbReady || !introSeen) {
-    return (
-      <IntroSplash
-        ready={dbReady}
-        error={!!dbError}
-        onRetry={() => refreshDb()}
-        onDone={() => {
-          sessionStorage.setItem('edulevel_intro_seen', '1');
-          setIntroSeen(true);
-        }}
-      />
-    );
+  // Keep public content available while the database loads or fails. Never expose a protected view before auth.
+  if (!dbReady && activeSite === 'site1_open') {
+    return <HeroLoading error={Boolean(dbError)} onRetry={() => void refreshDb()}/>;
+  }
+  if (!dbReady && activeSite !== 'auth') {
+    return <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+      <p role="status">{dbError ? 'Ma’lumotlar yuklanmadi.' : 'Kabinet yuklanmoqda…'}</p>
+      {dbError && <button type="button" onClick={() => void refreshDb()} className="rounded-xl bg-ember-600 px-5 py-3 font-semibold text-white">Qayta urinish</button>}
+      <button type="button" onClick={() => setActiveSite('site1_open')} className="min-h-11 underline">Bosh sahifa</button>
+    </div>;
   }
 
   // Dedicated Auth Page Route
