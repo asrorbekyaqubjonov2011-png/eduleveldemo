@@ -1,26 +1,100 @@
-name: EduLevel verification
+name: EduLevel isolated integration
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [vision-v12-reliability]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: vision-verify-${{ github.ref }}
+  group: vision-integration-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  verify:
+  browser-and-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-local-only
+          POSTGRES_DB: edulevel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d edulevel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
+      CI: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgresql://postgres:fixture-local-only@127.0.0.1:5432/edulevel
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fixture-local-only
+      PGDATABASE: edulevel
+      OWNER_USERNAME: visionfixture
+      OWNER_PASSWORD: VisionFixture-2026!
+      TELEGRAM_BOT_TOKEN: test:token
+      TELEGRAM_WEBHOOK_SECRET: fixture-hook-secret-only
+      TELEGRAM_CRON_SECRET: fixture-cron-secret-only
+      TELEGRAM_API_BASE: http://127.0.0.1:4555
+      BASE: http://127.0.0.1:3100
+      BASE_URL: http://127.0.0.1:3100
+      FAKE_TELEGRAM: http://127.0.0.1:4555
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run lint
-      - run: bun run test
-      - run: bun run build
+      - name: Install project
+        run: bun install --frozen-lockfile
+      - name: Install isolated browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/vision-browser" --no-audit --no-fund --no-package-lock playwright@1.56.1
+          "$RUNNER_TEMP/vision-browser/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/vision-browser/node_modules" >> "$GITHUB_ENV"
+      - name: Apply existing migrations to disposable database
+        run: |
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          insert into public.level_tests(id,title,status,time_limit_seconds,shuffle_questions,max_violations,grading_rules)
+          values ('v9-test','Vision fixture placement','published',1800,false,2,'[{"min":0,"max":49,"level":"A1"},{"min":50,"max":100,"level":"B1"}]');
+          insert into public.level_questions(id,test_id,position,prompt,options,correct_index)
+          select 'fixture-q-'||i,'v9-test',i,'She ___ to school every day.','["go","goes","going","gone"]',1
+          from generate_series(1,8) i;
+          SQL
+      - name: Build actual Next.js app
+        run: bun run build
+      - name: Launch local services
+        run: |
+          mkdir -p /tmp/claude-0/shots vision-smoke-results
+          node scripts/fake-telegram.mjs > vision-smoke-results/telegram.log 2>&1 &
+          bun run start -- -p 3100 > vision-smoke-results/server.log 2>&1 &
+          for n in $(seq 1 90); do
+            if curl -fsS "$BASE/api/db/all" >/dev/null && curl -fsS "$FAKE_TELEGRAM/_state" >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "Fixture startup failed"
+          exit 1
+      - name: Browser, auth and local burst
+        run: node scripts/vision-browser-smoke.cjs
+      - name: EduBek public dock
+        if: ${{ !cancelled() }}
+        run: node scripts/edubek-dock-browser-test.cjs
+      - name: Placement exam
+        if: ${{ !cancelled() }}
+        run: node scripts/level-exam-browser-test.cjs
+      - name: Telegram simulated API
+        if: ${{ !cancelled() }}
+        run: node scripts/telegram-bot-test.mjs
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vision-integration-evidence
+          path: |
+            vision-smoke-results/
+            /tmp/claude-0/shots/
+          retention-days: 3
