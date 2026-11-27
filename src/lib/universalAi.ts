@@ -1086,23 +1086,74 @@ export async function raceModelAnswer(opts: {
 export async function streamTutorAnswer(params: TutorParams, onText: (piece: string) => void, outer?: AbortSignal): Promise<string> {
   const { systemInstruction, prompt } = buildTutorRequest(params);
   const maxTokens = params.talk ? TALK_MAX_TOKENS : TUTOR_MAX_TOKENS;
-  // The owner may put another provider ahead of Gemini for chat or voice: then Gemini's race is skipped and the routed call answers.
-  const first = resolveRoute(params.talk ? 'voice' : 'edubek_chat', { hasGeminiKey: Boolean((params.apiKey || process.env.GEMINI_API_KEY || '').trim()) })[0];
-  if (first && first !== 'gemini') {
-    const text = await chatWithAiTutor(params);
-    onText(text);
-    return text;
-  }
+  const task = params.talk ? 'voice' : 'edubek_chat';
+  // Use only the server's configured account. An unrelated user-supplied key is not proof of a free tier.
+  const key = (process.env.GEMINI_API_KEY || '').trim();
+  const timeoutMs = routeConfig(task).timeoutMs ?? defaultTimeoutMs(task);
+  const deadline = AbortSignal.timeout(timeoutMs);
+  const signal = outer ? AbortSignal.any([outer, deadline]) : deadline;
+  const route = resolveRoute(task, { hasGeminiKey: Boolean(key) });
+  let lastError: unknown = new Error('Bepul AI modeli mavjud emas');
   let emitted = false;
-  try {
-    return await raceModelAnswer({ apiKey: params.apiKey || '', systemInstruction, prompt, maxTokens, onText: (piece) => { if (piece) emitted = true; onText(piece); }, outer, fallback: () => chatWithAiTutor(params) });
-  } catch (e) {
-    // Every Gemini model failed (for example HTTP 429) before the student saw a word: the other free providers answer in one piece.
-    if (emitted || outer?.aborted || isKeyProblem(e)) throw e;
-    const text = await chatWithAiTutor(params);
-    onText(text);
-    return text;
+  const emit = (piece: string) => {
+    signal.throwIfAborted();
+    if (!emitted && !piece.trim()) return;
+    emitted = true;
+    onText(piece);
+  };
+  for (const provider of route) {
+    signal.throwIfAborted();
+    try {
+      if (provider !== 'gemini') {
+        const result = await runFallbackChain({ system: systemInstruction, prompt, maxTokens, temperature: 0.3, timeoutMs, signal, onText: emit }, process.env, fetch, undefined, fallbackIds([provider]));
+        return result.text;
+      }
+      if (!key || !geminiAllowed()) continue;
+      const ai = new GoogleGenAI({ apiKey: key, httpOptions: { headers: { 'User-Agent': 'aistudio-build' } } });
+      const models = usableModels(await pickGeminiModelsFast(key)).slice(0, 2);
+      for (const model of models) {
+        signal.throwIfAborted();
+        const first = new AbortController();
+        const attempt = AbortSignal.any([signal, first.signal]);
+        const timer = setTimeout(() => first.abort(), Math.min(3500, Math.max(1000, Math.floor(timeoutMs / 3))));
+        const t0 = Date.now();
+        let text = '', ttft = 0;
+        let last: unknown;
+        try {
+          const gemma = isGemmaModel(model);
+          const stream = await ai.models.generateContentStream({
+            model,
+            contents: gemma ? systemInstruction + '\n\n---\n\n' + prompt : prompt,
+            config: { ...(gemma ? {} : { systemInstruction, temperature: 0.3 }), maxOutputTokens: maxTokens, abortSignal: attempt }
+          });
+          for await (const chunk of stream) {
+            attempt.throwIfAborted();
+            last = chunk;
+            const parts = chunk?.candidates?.[0]?.content?.parts ?? [];
+            const piece = parts.filter(p => typeof p.text === 'string' && !p.thought).map(p => p.text).join('');
+            if (!piece || (!text && !piece.trim())) continue;
+            if (!text) { clearTimeout(timer); ttft = Date.now() - t0; }
+            text += piece;
+            emit(piece);
+          }
+          attempt.throwIfAborted();
+          if (!text.trim()) throw new Error('AI bo‘sh javob qaytardi');
+          noteAiCall({ model, provider: 'gemini', ok: true, ms: Date.now() - t0, ttft, ...tokenUsage(last) });
+          return text;
+        } catch (err) {
+          if (signal.aborted || emitted) throw err;
+          lastError = err;
+          if (!first.signal.aborted) markModelFailed(model, err instanceof Error ? err.message : String(err));
+          noteAiCall({ model, provider: 'gemini', ok: false, ms: Date.now() - t0, inTok: 0, outTok: 0, error: first.signal.aborted ? 'First token timeout' : 'Provider response failed' });
+          if (isKeyProblem(err)) break;
+        } finally { clearTimeout(timer); }
+      }
+    } catch (err) {
+      if (emitted || signal.aborted) throw err;
+      lastError = err;
+    }
   }
+  throw new AiUnavailableError('AI ustoz', lastError);
 }
 
 /**
