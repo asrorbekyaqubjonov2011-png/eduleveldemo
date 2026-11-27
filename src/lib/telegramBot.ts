@@ -28,6 +28,7 @@ export function webhookSecret(): string {
 
 const CALL_TIMEOUT_MS = 8000;
 const MAX_TELEGRAM_RETRY_MS = 2500;
+const TOTAL_TELEGRAM_TIMEOUT_MS = 12_000;
 
 /** Button colours (`style`) are removed for a retry, in case Telegram refuses them. */
 function withoutStyle(value: any): any {
@@ -40,14 +41,15 @@ function withoutStyle(value: any): any {
   return value;
 }
 
-async function callTelegram(method: string, payload: Record<string, unknown>): Promise<any> {
+async function callTelegram(method: string, payload: Record<string, unknown>, deadline: AbortSignal): Promise<any> {
+  deadline.throwIfAborted();
   const token = botToken();
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN sozlanmagan');
   const res = await fetch(`${API}/bot${token}/${method}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(CALL_TIMEOUT_MS)
+    signal: AbortSignal.any([deadline, AbortSignal.timeout(CALL_TIMEOUT_MS)])
   });
   const result = await res.json().catch(() => null);
   if (!result || typeof result.ok !== 'boolean') throw new Error('Telegram serveridan noto‘g‘ri javob');
@@ -60,19 +62,24 @@ let coloursRefusedAt = 0;
 /** Methods whose text is sent in Telegram's HTML mode (bold titles, tap-to-copy codes). */
 const HTML_METHODS = new Set(['sendMessage', 'editMessageText']);
 
-async function sendOnce(method: string, payload: Record<string, unknown>): Promise<any> {
+async function sendOnce(method: string, payload: Record<string, unknown>, deadline: AbortSignal): Promise<any> {
   const coloursOff = coloursRefusedAt > 0 && Date.now() - coloursRefusedAt < 30 * 60 * 1000;
   const sentPayload = coloursOff ? withoutStyle(payload) : payload;
-  let json = await callTelegram(method, sentPayload);
+  let json = await callTelegram(method, sentPayload, deadline);
   // A 429 explicitly rejects the send, so a bounded retry cannot duplicate a successful message.
   const retryMs = Number(json.parameters?.retry_after) * 1000;
   if (!json.ok && json.error_code === 429 && retryMs > 0 && retryMs <= MAX_TELEGRAM_RETRY_MS) {
-    await new Promise(resolve => setTimeout(resolve, retryMs + 100));
-    json = await callTelegram(method, sentPayload);
+    await new Promise<void>((resolve, reject) => {
+      const cancel = () => { clearTimeout(timer); deadline.removeEventListener('abort', cancel); reject(deadline.reason); };
+      const timer = setTimeout(() => { deadline.removeEventListener('abort', cancel); resolve(); }, retryMs + 100);
+      deadline.addEventListener('abort', cancel, { once: true });
+      if (deadline.aborted) cancel();
+    });
+    json = await callTelegram(method, sentPayload, deadline);
   }
-  if (!json.ok && !coloursOff && JSON.stringify(payload).includes('"style"') && /button|style|markup|keyboard|reply/i.test(String(json.description || ''))) {
+  if (!json.ok && json.error_code === 400 && !coloursOff && JSON.stringify(payload).includes('"style"') && /button|style|markup|keyboard|reply/i.test(String(json.description || ''))) {
     coloursRefusedAt = Date.now();
-    json = await callTelegram(method, withoutStyle(payload));
+    json = await callTelegram(method, withoutStyle(payload), deadline);
   }
   return json;
 }
@@ -83,13 +90,14 @@ export function stripHtml(text: string): string {
 }
 
 export async function telegramApi(method: string, payload: Record<string, unknown> = {}): Promise<any> {
+  const deadline = AbortSignal.timeout(TOTAL_TELEGRAM_TIMEOUT_MS);
   const html = HTML_METHODS.has(method) && typeof payload.text === 'string' && payload.parse_mode === undefined;
-  let json = await sendOnce(method, html ? { ...payload, parse_mode: 'HTML' } : payload);
+  let json = await sendOnce(method, html ? { ...payload, parse_mode: 'HTML' } : payload, deadline);
   // A stray "<" or "&" in a message makes Telegram refuse the markup: send the same text as plain text instead.
-  if (!json.ok && html && /parse entities|can't parse|unsupported start tag/i.test(String(json.description || ''))) {
-    json = await sendOnce(method, { ...payload, text: stripHtml(String(payload.text)) });
+  if (!json.ok && json.error_code === 400 && html && /parse entities|can't parse|unsupported start tag/i.test(String(json.description || ''))) {
+    json = await sendOnce(method, { ...payload, text: stripHtml(String(payload.text)) }, deadline);
   }
-  if (!json.ok) throw new Error(json.description || `Telegram ${method} xatosi`);
+  if (!json.ok) throw new Error(String(json.description || `Telegram ${method} xatosi`).replace(/\b\d{6,}:[A-Za-z0-9_-]{15,}/g, '[token]').slice(0, 240));
   return json.result;
 }
 
@@ -137,7 +145,10 @@ export async function downloadTelegramFile(fileId: string, maxBytes = 8 * 1024 *
 
 /** The amount typed in a message or caption, e.g. "100000" or "100 000 so‘m". */
 export function parseAmount(text: string): number | null {
-  const digits = text.replace(/[^\d]/g, '');
+  // Never merge unrelated numbers, decimals, negative amounts or receipt references into a deposit.
+  const amount = text.trim().replace(/\s*(?:so[‘’ʻʼ'`]?m|uzs)\s*$/i, '').trim();
+  if (!/^(?:\d+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+)$/.test(amount)) return null;
+  const digits = amount.replace(/\s/g, '');
   if (!digits || digits.length > 9) return null;
   const n = Number(digits);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -152,7 +163,10 @@ export async function channelMembership(channel: string, userId: number): Promis
   if (!name || !userId) return 'unknown';
   try {
     const member = await telegramApi('getChatMember', { chat_id: `@${name}`, user_id: userId });
-    return ['member', 'administrator', 'creator'].includes(member?.status) ? 'member' : 'none';
+    if (member?.status === 'restricted') return member.is_member === true ? 'member' : 'none';
+    if (['member', 'administrator', 'creator'].includes(member?.status)) return 'member';
+    if (['left', 'kicked'].includes(member?.status)) return 'none';
+    return 'unknown';
   } catch {
     return 'unknown';
   }
