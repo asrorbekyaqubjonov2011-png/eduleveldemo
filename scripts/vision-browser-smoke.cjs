@@ -47,6 +47,9 @@ async function inspect(page, route, width, screenshot) {
     }
     const anon=await browser.newContext();
     check('anonymous owner API refused',(await anon.request.get(new URL('/api/owner/ai-providers',base).href)).status()===401);
+    check('AI stream rejects oversized payload', (await anon.request.post(new URL('/api/ai-stream',base).href,{data:{userMessage:'x'.repeat(97000)}})).status()===413);
+    check('AI stream rejects invalid JSON shape', (await anon.request.post(new URL('/api/ai-stream',base).href,{data:'null',headers:{'Content-Type':'application/json'}})).status()===400);
+    check('anonymous AI stream refused', (await anon.request.post(new URL('/api/ai-stream',base).href,{data:{userMessage:'Hello'}})).status()===401);
     await anon.close();
     const student=await browser.newContext({viewport:{width:1280,height:900}});
     const email='vision-smoke-'+Date.now()+'@test.local';
