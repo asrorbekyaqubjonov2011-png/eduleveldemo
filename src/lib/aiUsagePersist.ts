@@ -19,7 +19,7 @@ async function savePaymentBlocked(): Promise<void> {
   }
 }
 
-let started = false;
+let initializing: Promise<void> | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let dirty = false;
 
@@ -38,23 +38,17 @@ export async function flushProviderUsage(): Promise<void> {
 }
 
 /** Loads today's saved totals once and starts the debounced saver. Safe to call on every request. */
-export async function ensureProviderUsagePersistence(): Promise<void> {
-  if (started) return;
-  started = true;
-  try {
-    const { rows } = await getPool().query('select value from public.site_settings where key = $1', [KEY]);
-    const saved = rows[0]?.value as { day?: string; providers?: Record<string, { calls?: number; tokens?: number }> } | undefined;
-    if (saved?.day && saved.providers) seedProviderDay(saved.day, saved.providers);
-  } catch {
-    /* no database yet: counters simply start from zero */
-  }
-  try {
-    const { rows } = await getPool().query('select value from public.site_settings where key = $1', [BLOCK_KEY]);
-    const ids = (rows[0]?.value as { ids?: string[] } | undefined)?.ids;
-    if (Array.isArray(ids)) seedPaymentBlocked(ids);
-  } catch {
-    /* ignore */
-  }
+export function ensureProviderUsagePersistence(): Promise<void> {
+  if (!initializing) initializing = initialize().catch(error => { initializing = null; throw error; });
+  return initializing;
+}
+
+async function initialize(): Promise<void> {
+  const { rows } = await getPool().query('select key, value from public.site_settings where key in ($1, $2)', [KEY, BLOCK_KEY]);
+  const saved = rows.find(row => row.key === KEY)?.value as { day?: string; providers?: Record<string, { calls?: number; tokens?: number }> } | undefined;
+  if (saved?.day && saved.providers) seedProviderDay(saved.day, saved.providers);
+  const ids = (rows.find(row => row.key === BLOCK_KEY)?.value as { ids?: string[] } | undefined)?.ids;
+  if (Array.isArray(ids)) seedPaymentBlocked(ids);
   onPaymentBlockChange(() => { void savePaymentBlocked(); });
   onProviderUsageChange(() => {
     dirty = true;
