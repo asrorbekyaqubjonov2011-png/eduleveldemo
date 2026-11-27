@@ -15,6 +15,9 @@ export const dynamic = 'force-dynamic';
 
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json({ success: false, ...body }, { status });
 const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+const MAX_ACTIVE_STREAMS = 12;
+let activeStreams = 0;
+
 
 /**
  * Edubek's streamed answer without loading the whole database: the person, the settings and (when picked)
@@ -23,21 +26,44 @@ const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : 
  */
 export async function POST(req: NextRequest) {
   if (req.headers.get('sec-fetch-site') === 'cross-site') return json({ message: 'So‘rov rad etildi.' }, 403);
-  const pool = getPool();
+  const length = Number(req.headers.get('content-length') || 0);
+  if (length > 96_000) return json({ message: 'So‘rov hajmi juda katta.' }, 413);
   let body: any;
   try {
-    body = await req.json();
+    // Count actual UTF-8 bytes, even if a client omits the Content-Length header.
+    const reader = req.body?.getReader();
+    if (!reader) return json({ message: 'So‘rov bo‘sh.' }, 400);
+    const decoder = new TextDecoder();
+    let raw = '', received = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.byteLength;
+        if (received > 96_000) { void reader.cancel().catch(() => {}); return json({ message: 'So‘rov hajmi juda katta.' }, 413); }
+        raw += decoder.decode(value, { stream: true });
+      }
+      raw += decoder.decode();
+    } finally { reader.releaseLock(); }
+    body = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ message: 'So‘rov noto‘g‘ri.' }, 400);
   } catch {
     return json({ message: 'So‘rov noto‘g‘ri.' }, 400);
   }
+  if (activeStreams >= MAX_ACTIVE_STREAMS) return NextResponse.json({ success: false, code: 'AI_BUSY', message: 'EduBek band. Birozdan so‘ng qayta urinib ko‘ring.' }, { status: 503, headers: { 'Retry-After': '2' } });
+  activeStreams++;
+  let released = false, handedOff = false;
+  const release = () => { if (!released) { released = true; activeStreams--; } };
   try {
+    const pool = getPool();
     await ensureBootstrap(pool);
     const token = req.cookies.get(SESSION_COOKIE)?.value || (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') || null;
     // One round trip for the session, its user and the two settings this route needs (it used to be three).
     const tokenHash = token ? hashToken(token) : null;
     const head = tokenHash
       ? await pool.query(
-          `select s.is_owner, s.user_id, u.name, u.vip_tier, u.vip_expires_at, u.track,
+          `select s.is_owner, s.user_id, u.name, u.vip_tier, u.vip_expires_at, u.track, u.id as existing_user_id,
+                  (case when u.banned_until is not null then u.banned_until > now() else coalesce(u.is_blocked, false) end) as banned,
                   (select json_object_agg(x.key, x.value) from public.site_settings x where x.key in ('features', 'ai_limits', 'ai_routing')) as settings
              from public.sessions s
              left join public.users u on u.id = s.user_id
@@ -48,6 +74,7 @@ export async function POST(req: NextRequest) {
     const row = head.rows[0];
     if (!row) return json({ message: 'Avval tizimga kiring.', code: 'UNAUTHORIZED' }, 401);
     const owner = !!row.is_owner;
+    if (!owner && (!row.existing_user_id || row.banned)) return json({ message: 'Avval tizimga kiring.', code: 'UNAUTHORIZED' }, 401);
     const who = owner ? OWNER_ID : row.user_id;
 
     const lim = rateLimit(`ai:${who}`, owner ? 300 : 120, 60 * 60 * 1000);
@@ -155,17 +182,20 @@ export async function POST(req: NextRequest) {
             clearTimeout(timer);
             req.signal.removeEventListener('abort', cancel);
             if (!closed) { closed = true; try { controller.close(); } catch { /* disconnected */ } }
+            release();
             void recordAiStats(calls, { op: 'chat-tutor', userId: who }).catch(() => {});
           }
         });
       },
       cancel() { cancel(); req.signal.removeEventListener('abort', cancel); }
     });
-    return new NextResponse(stream, {
+    const response = new NextResponse(stream, {
       headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Content-Encoding': 'identity' }
     });
+    handedOff = true;
+    return response;
   } catch (e) {
-    console.error('[ai-stream] failed', (e as Error)?.message);
+    console.error('[ai-stream] failed', (e as Error)?.name);
     return json({ code: 'SERVER_ERROR', message: 'Server xatosi. Qayta urinib ko‘ring.' }, 500);
-  }
+  } finally { if (!handedOff) release(); }
 }
