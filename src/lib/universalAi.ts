@@ -1106,6 +1106,7 @@ export async function streamTutorAnswer(params: TutorParams, onText: (piece: str
     try {
       if (provider !== 'gemini') {
         const result = await runFallbackChain({ system: systemInstruction, prompt, maxTokens, temperature: 0.3, timeoutMs, signal, onText: emit }, process.env, fetch, undefined, fallbackIds([provider]));
+        noteAiCall({ model: result.model, provider: result.provider, ok: true, ms: result.ms, ttft: result.ttft, inTok: result.inTok, outTok: result.outTok });
         return result.text;
       }
       if (!key || !geminiAllowed()) continue;
