@@ -41,7 +41,7 @@ jobs:
       TELEGRAM_WEBHOOK_SECRET: fixture-hook-secret-only
       TELEGRAM_CRON_SECRET: fixture-cron-secret-only
       TELEGRAM_API_BASE: http://127.0.0.1:4555
-      BASE: http://127.0.0.1:3100
+      BASE: https://127.0.0.1:3443
       BASE_URL: http://127.0.0.1:3100
       FAKE_TELEGRAM: http://127.0.0.1:4555
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
@@ -71,10 +71,13 @@ jobs:
         id: launch
         run: |
           mkdir -p /tmp/claude-0/shots vision-smoke-results
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' -keyout /tmp/vision-ci.key -out /tmp/vision-ci.crt >/dev/null 2>&1
+          echo 'NODE_EXTRA_CA_CERTS=/tmp/vision-ci.crt' >> "$GITHUB_ENV"
+          node scripts/fixture-https-proxy.mjs /tmp/vision-ci.crt /tmp/vision-ci.key > vision-smoke-results/tls.log 2>&1 &
           node scripts/fake-telegram.mjs > vision-smoke-results/telegram.log 2>&1 &
           bun run start -- -p 3100 > vision-smoke-results/server.log 2>&1 &
           for n in $(seq 1 90); do
-            if curl -fsS "$BASE/api/db/all" >/dev/null && curl -fsS "$FAKE_TELEGRAM/_state" >/dev/null; then exit 0; fi
+            if curl --cacert /tmp/vision-ci.crt -fsS "$BASE/api/db/all" >/dev/null && curl -fsS "$FAKE_TELEGRAM/_state" >/dev/null; then exit 0; fi
             sleep 2
           done
           echo "Fixture startup failed"
