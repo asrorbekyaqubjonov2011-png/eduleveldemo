@@ -1,0 +1,155 @@
+export type Language = 'uz' | 'ru' | 'en';
+
+export const translations = {
+  uz: {
+    // Navigation
+    dashboard: '📊 Boshqaruv Paneli',
+    progress: '📈 Progress & Recharts',
+    wallet: '💰 Hisob & Depozit',
+    courses: '🎥 Video Darslar',
+    reading: '📖 Reading Simulyator',
+    listening: '🎧 Listening Tayyorgarlik',
+    writing: '✍️ Writing AI Baholovchi',
+    speaking: '🎙️ Speaking Imtihonchi',
+    tests: '📝 To‘liq Mock Imtihonlar',
+    thematic_packs: '🧩 Testlar Bilimi (Packs)',
+    clan_battles: '⚔️ Klan Duellari (Live)',
+    ai_studio: '🤖 Voice AI Tutor',
+    translator: '🌐 3-Level Lug‘at',
+    library: '📚 Raqamli Kutubxona',
+    clans: '🛡️ 4-Kishilik Klanlar',
+    community: '💬 Global Hamjamiyat',
+    leaderboard: '🏆 O‘quvchilar Reytingi',
+    results: '🏅 Natijalar Arxivi',
+    history: '📈 Sinovlarim Tarixi',
+    vip: '👑 VIP Tariflar',
+    creators: '💻 Sayt Muhandislari',
+    profile: '👤 Shaxsiy Profilim',
+
+    // Tracks
+    track_general: '🇬🇧 General English',
+    track_ielts: '🎓 IELTS Academic',
+    track_cefr: '🏅 CEFR Multilevel',
+    select_track: 'O‘quv Yo‘nalishingizni Tanlang:',
+
+    // Common UI
+    language: 'Til',
+    welcome: 'Xush kelibsiz',
+    start_test: 'Boshlash',
+    submit: 'Topshirish',
+    close: 'Yopish',
+    search: 'Qidirish...',
+    points: 'ball',
+    xp: 'XP',
+    streak: 'kunlik streak',
+    level: 'Daraja',
+    correct: 'To‘g‘ri',
+    incorrect: 'Noto‘g‘ri',
+    score: 'Natija',
+    minutes: 'daqiqa',
+    questions: 'ta savol',
+    filter_all: 'Barchasi'
+  },
+  ru: {
+    // Navigation
+    dashboard: '📊 Панель Управления',
+    progress: '📈 Прогресс и Аналитика',
+    wallet: '💰 Счет и Депозит',
+    courses: '🎥 Видеоуроки',
+    reading: '📖 Симулятор Чтения',
+    listening: '🎧 Подготовка к Аудированию',
+    writing: '✍️ ИИ-Оценка Письма',
+    speaking: '🎙️ Симулятор Говорения',
+    tests: '📝 Полноценные Тесты',
+    thematic_packs: '🧩 Тематические Паки',
+    clan_battles: '⚔️ Дуэли Кланов',
+    ai_studio: '🤖 ИИ Репетитор',
+    translator: '🌐 3-Уровневый Словарь',
+    library: '📚 Цифровая Библиотека',
+    clans: '🛡️ Кланы из 4 Игроков',
+    community: '💬 Сообщество',
+    leaderboard: '🏆 Рейтинг Учеников',
+    results: '🏅 Архив Результатов',
+    history: '📈 История Тестов',
+    vip: '👑 VIP Тарифы',
+    creators: '💻 Инженеры Сайта',
+    profile: '👤 Мой Профиль',
+
+    // Tracks
+    track_general: '🇬🇧 Общий Английский',
+    track_ielts: '🎓 IELTS Академический',
+    track_cefr: '🏅 CEFR Мультиуровень',
+    select_track: 'Выберите Направление Обучения:',
+
+    // Common UI
+    language: 'Язык',
+    welcome: 'Добро пожаловать',
+    start_test: 'Начать',
+    submit: 'Отправить',
+    close: 'Закрыть',
+    search: 'Поиск...',
+    points: 'баллов',
+    xp: 'XP',
+    streak: 'дней подряд',
+    level: 'Уровень',
+    correct: 'Верно',
+    incorrect: 'Неверно',
+    score: 'Результат',
+    minutes: 'минут',
+    questions: 'вопросов',
+    filter_all: 'Все'
+  },
+  en: {
+    // Navigation
+    dashboard: '📊 Dashboard',
+    progress: '📈 Progress & Recharts',
+    wallet: '💰 Account & Deposit',
+    courses: '🎥 Video Courses',
+    reading: '📖 Reading Simulator',
+    listening: '🎧 Listening Preparation',
+    writing: '✍️ Writing AI Grader',
+    speaking: '🎙️ Speaking Simulator',
+    tests: '📝 Full Mock Exams',
+    thematic_packs: '🧩 Knowledge Packs',
+    clan_battles: '⚔️ Clan Battles (Live)',
+    ai_studio: '🤖 Voice AI Tutor',
+    translator: '🌐 3-Level Vocabulary',
+    library: '📚 Digital Library',
+    clans: '🛡️ 4-Member Clans',
+    community: '💬 Global Community',
+    leaderboard: '🏆 Student Leaderboard',
+    results: '🏅 Results Archive',
+    history: '📈 Test History',
+    vip: '👑 VIP Plans',
+    creators: '💻 Site Engineers',
+    profile: '👤 My Profile',
+
+    // Tracks
+    track_general: '🇬🇧 General English',
+    track_ielts: '🎓 IELTS Academic',
+    track_cefr: '🏅 CEFR Multilevel',
+    select_track: 'Select Your Learning Track:',
+
+    // Common UI
+    language: 'Language',
+    welcome: 'Welcome',
+    start_test: 'Start',
+    submit: 'Submit',
+    close: 'Close',
+    search: 'Search...',
+    points: 'points',
+    xp: 'XP',
+    streak: 'day streak',
+    level: 'Level',
+    correct: 'Correct',
+    incorrect: 'Incorrect',
+    score: 'Score',
+    minutes: 'mins',
+    questions: 'questions',
+    filter_all: 'All'
+  }
+};
+
+export const getTranslation = (lang: Language = 'uz', key: keyof typeof translations['uz']) => {
+  return translations[lang]?.[key] || translations['uz'][key] || key;
+};

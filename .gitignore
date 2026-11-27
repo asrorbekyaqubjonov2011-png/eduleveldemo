@@ -1,0 +1,17 @@
+node_modules/
+.next/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# EduLevel: local data and generated files
+data/db.json
+data/*.bak*
+data/sessions.json
+.aistudio/
+*.tsbuildinfo
+EDU_LEVEL_HANDOFF/source/
+firebase-applet-config.json
+data/archive/

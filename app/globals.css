@@ -1,0 +1,1711 @@
+/* =========================================================================
+   EDU LEVEL — design system (single source of truth, loaded by app/layout.tsx).
+   ========================================================================= */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================================
+   EDU LEVEL — DESIGN TOKENS
+   Warm, editorial system: ivory paper, deep ink, one molten-amber accent.
+   ========================================================================= */
+@theme {
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'Space Grotesk', ui-monospace, monospace;
+
+  --color-paper: #f7f4ef;
+  --color-paper-raised: #fdfbf8;
+  --color-ink: #12100e;
+  --color-ink-soft: #1b1815;
+  --color-ink-muted: #6b655c;
+  --color-line: #e5dfd5;
+
+  --color-ember-300: #ffcf8f;
+  --color-ember-400: #ffb45c;
+  --color-ember-500: #ff8a2b;
+  --color-ember-600: #ef6c12;
+  --color-ember-700: #c9540a;
+
+  --color-sun-300: #ffe6a3;
+  --color-sun-400: #ffd166;
+
+  --color-teal-accent: #0f766e;
+  --color-emerald-accent: #059669;
+
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
+  --radius-3xl: 2rem;
+  --radius-4xl: 2.5rem;
+
+  --color-night: #07080b;
+  --color-night-raised: #0e0f13;
+  --color-night-line: #1d1f26;
+  --color-cream: #fbf6ef;
+  --color-cream-deep: #f4eadd;
+
+  --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-glass: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-expo: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@layer base {
+  :root {
+    --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+
+    --glass-1-bg: rgba(255, 255, 255, 0.55);
+    --glass-1-border: rgba(255, 255, 255, 0.7);
+    --glass-2-bg: rgba(255, 255, 255, 0.62);
+    --glass-2-border: rgba(255, 255, 255, 0.8);
+    --glass-3-bg: rgba(255, 255, 255, 0.45);
+    --glass-3-border: rgba(255, 255, 255, 0.55);
+    --glass-4-bg: rgba(253, 251, 248, 0.88);
+    --glass-4-border: rgba(255, 255, 255, 0.9);
+
+    --shadow-ambient: 0 1px 2px rgba(18, 16, 14, 0.04), 0 8px 24px -8px rgba(18, 16, 14, 0.1);
+    --shadow-lift: 0 2px 4px rgba(18, 16, 14, 0.05), 0 24px 48px -16px rgba(18, 16, 14, 0.18);
+    --shadow-float: 0 4px 8px rgba(18, 16, 14, 0.06), 0 48px 80px -24px rgba(18, 16, 14, 0.28);
+    --shadow-ember: 0 8px 32px -8px rgba(255, 138, 43, 0.45);
+
+    /* Motion tokens */
+    --dur-instant: 120ms;
+    --dur-fast: 200ms;
+    --dur-base: 360ms;
+    --dur-slow: 720ms;
+    --dur-cinematic: 1100ms;
+
+    /* Liquid Glass materials (light) */
+    --lg-subtle-bg: rgba(255, 255, 255, 0.5);
+    --lg-subtle-border: rgba(255, 255, 255, 0.65);
+    --lg-premium-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.52));
+    --lg-premium-border: rgba(255, 255, 255, 0.85);
+    --lg-floating-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 252, 247, 0.62));
+    --lg-floating-border: rgba(255, 255, 255, 0.95);
+    --lg-focused-bg: rgba(253, 251, 248, 0.94);
+    --lg-focused-border: rgba(255, 255, 255, 1);
+    --lg-edge: rgba(255, 255, 255, 0.9);
+    --lg-tint: rgba(255, 138, 43, 0.06);
+
+    --page-bg: #fbf6ef;
+  }
+
+  .dark {
+    --glass-1-bg: rgba(27, 24, 21, 0.55);
+    --glass-1-border: rgba(255, 255, 255, 0.08);
+    --glass-2-bg: rgba(27, 24, 21, 0.65);
+    --glass-2-border: rgba(255, 255, 255, 0.12);
+    --glass-3-bg: rgba(18, 16, 14, 0.45);
+    --glass-3-border: rgba(255, 255, 255, 0.1);
+    --glass-4-bg: rgba(23, 21, 18, 0.92);
+    --glass-4-border: rgba(255, 255, 255, 0.14);
+
+    --shadow-ambient: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 48px -16px rgba(0, 0, 0, 0.6);
+    --shadow-float: 0 4px 8px rgba(0, 0, 0, 0.45), 0 48px 80px -24px rgba(0, 0, 0, 0.7);
+
+    /* Liquid Glass materials (dark) */
+    --lg-subtle-bg: rgba(255, 255, 255, 0.035);
+    --lg-subtle-border: rgba(255, 255, 255, 0.07);
+    --lg-premium-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.03));
+    --lg-premium-border: rgba(255, 255, 255, 0.1);
+    --lg-floating-bg: linear-gradient(180deg, rgba(34, 32, 30, 0.72), rgba(16, 15, 14, 0.62));
+    --lg-floating-border: rgba(255, 255, 255, 0.13);
+    --lg-focused-bg: rgba(16, 15, 14, 0.94);
+    --lg-focused-border: rgba(255, 255, 255, 0.14);
+    --lg-edge: rgba(255, 255, 255, 0.16);
+    --lg-tint: rgba(255, 138, 43, 0.05);
+
+    --page-bg: #07080b;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--page-bg);
+    /* clip (not hidden): hidden would make <body> a scroll container and break position:sticky */
+    overflow-x: clip;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    overflow-x: clip;
+  }
+
+  /* Grid/flex items default to min-width:auto, so long unbreakable content (truncated
+     titles, nowrap buttons) can push a column wider than the screen. */
+  .grid > *,
+  .flex > * {
+    min-width: 0;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: rgba(255, 138, 43, 0.22);
+    color: #12100e;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(255, 138, 43, 0.65);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+/* =========================================================================
+   LIQUID GLASS MATERIAL SYSTEM — four levels of depth
+   ========================================================================= */
+.glass-1 {
+  background: var(--glass-1-bg);
+  border: 1px solid var(--glass-1-border);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--shadow-ambient);
+}
+
+.glass-2 {
+  background: var(--glass-2-bg);
+  border: 1px solid var(--glass-2-border);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: var(--shadow-ambient), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.glass-3 {
+  background: var(--glass-3-bg);
+  border: 1px solid var(--glass-3-border);
+  backdrop-filter: blur(40px) saturate(170%);
+  -webkit-backdrop-filter: blur(40px) saturate(170%);
+  box-shadow: var(--shadow-lift), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.glass-4 {
+  background: var(--glass-4-bg);
+  border: 1px solid var(--glass-4-border);
+  backdrop-filter: blur(56px) saturate(180%);
+  -webkit-backdrop-filter: blur(56px) saturate(180%);
+  box-shadow: var(--shadow-float), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.glass-dark {
+  background: rgba(18, 16, 14, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.glass-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.glass-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.55) 45%,
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 75%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.9s var(--ease-liquid);
+  pointer-events: none;
+}
+.glass-sheen:hover::before {
+  transform: translateX(120%);
+}
+
+/* =========================================================================
+   LIQUID GLASS v2 — named materials used by the redesign
+   subtle   : hairline surfaces inside cards and lists
+   premium  : section panels, cards, stat bars
+   floating : navigation, floating controls, hero cards
+   focused  : modals, sheets, menus (max legibility)
+   Each material carries a specular top edge and a soft inner glow.
+   ========================================================================= */
+.glass-subtle,
+.glass-premium,
+.glass-floating,
+.glass-focused {
+  position: relative;
+  isolation: isolate;
+}
+.glass-subtle {
+  background: var(--lg-subtle-bg);
+  border: 1px solid var(--lg-subtle-border);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+}
+.glass-premium {
+  background: var(--lg-premium-bg);
+  border: 1px solid var(--lg-premium-border);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--shadow-ambient), inset 0 1px 0 var(--lg-edge);
+}
+.glass-floating {
+  background: var(--lg-floating-bg);
+  border: 1px solid var(--lg-floating-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--shadow-lift), inset 0 1px 0 var(--lg-edge), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+}
+.glass-focused {
+  background: var(--lg-focused-bg);
+  border: 1px solid var(--lg-focused-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--shadow-float), inset 0 1px 0 var(--lg-edge);
+}
+/* Glass on photography / night canvas, independent of the theme */
+.glass-night {
+  background: linear-gradient(180deg, rgba(28, 26, 24, 0.52), rgba(12, 12, 12, 0.38));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+/* Specular rim: a 1px gradient border painted with a mask (no extra DOM) */
+.glass-rim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.04) 38%, rgba(255, 160, 80, 0.18) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Lower-cost glass on small / low-power screens */
+@media (max-width: 640px) {
+  .glass-premium,
+  .glass-floating,
+  .glass-focused,
+  .glass-night,
+  .glass-2,
+  .glass-3,
+  .glass-4 {
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-subtle,
+  .glass-premium,
+  .glass-floating,
+  .glass-focused,
+  .glass-night,
+  .glass-1,
+  .glass-2,
+  .glass-3,
+  .glass-4 {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--lg-focused-bg);
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-premium,
+  .glass-floating,
+  .glass-focused {
+    background: var(--lg-focused-bg);
+  }
+  .glass-night {
+    background: rgba(18, 17, 16, 0.92);
+  }
+}
+
+/* =========================================================================
+   SCROLL MOTION — progressive enhancement, driven by ScrollReveals.tsx.
+   An element is hidden only when JS has marked <html> as motion-ready and
+   the element has not been revealed yet (no data-in). The entrance itself
+   runs through the Web Animations API, so hover styles are never overridden.
+   ========================================================================= */
+html.motion-ready [data-reveal]:not([data-in]) {
+  opacity: 0;
+}
+/* A fully clipped element has no area, so IntersectionObserver would never see it:
+   headings wait invisible (opacity) and only the entrance animation clips them. */
+
+/* Progress bars: an ancestor with [data-scrub] sets --scrub (0 to 1). */
+.scrub-x {
+  transform-origin: left center;
+  scale: var(--scrub, 0) 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrub-x {
+    scale: 1 1;
+  }
+}
+
+/* Gradient words used inside split headlines (each word clips itself) */
+.word-ember {
+  background: linear-gradient(96deg, #ffe0a0 0%, #ffc15c 30%, #ff9a3c 62%, #ff6a1a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* On light surfaces the gradient runs deeper for contrast; .on-dark keeps the bright version */
+html:not(.dark) .word-ember:not(.on-dark),
+html:not(.dark) .text-ember-gradient:not(.on-dark) {
+  background-image: linear-gradient(96deg, #ff9a3c 0%, #f2650f 55%, #c9480a 100%);
+}
+
+/* Lenis smooth scrolling */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Copper accent used over the cream story footage */
+.story-accent {
+  background: linear-gradient(96deg, #8f4012 0%, #c56a24 48%, #e39a52 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Interactive affordances */
+.lift {
+  transition: transform var(--dur-base) var(--ease-liquid), box-shadow var(--dur-base) var(--ease-liquid);
+}
+@media (hover: hover) {
+  .lift:hover {
+    transform: translate3d(0, -4px, 0);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+.hairline {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  height: 1px;
+}
+
+/* Grain overlay for photographic sections */
+.grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  z-index: 1;
+}
+
+/* =========================================================================
+   TYPE
+   ========================================================================= */
+.text-display {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-ember-gradient {
+  background: linear-gradient(96deg, #ffe6a3 0%, #ffd166 26%, #ffa23c 58%, #ff7a1a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-ember-gradient-static {
+  background: linear-gradient(96deg, #ffd166 0%, #ff8a2b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* =========================================================================
+   SCROLLBAR
+   ========================================================================= */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 110, 95, 0.22);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 110, 95, 0.4);
+}
+
+.katex-display {
+  margin: 0.75em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+/* =========================================================================
+   ANIMATED STICKERS (kept — used across the whole product)
+   ========================================================================= */
+@keyframes flameBurn {
+  0% {
+    transform: scale(1) translateY(0) rotate(-1deg);
+    filter: drop-shadow(0 0 4px rgba(249, 87, 56, 0.8)) drop-shadow(0 0 10px rgba(255, 140, 0, 0.6));
+  }
+  25% {
+    transform: scale(1.08, 0.95) translateY(-1px) rotate(2deg);
+    filter: drop-shadow(0 0 7px rgba(255, 69, 0, 0.9)) drop-shadow(0 0 14px rgba(255, 215, 0, 0.8));
+  }
+  50% {
+    transform: scale(0.96, 1.06) translateY(-2px) rotate(-2deg);
+    filter: drop-shadow(0 0 5px rgba(249, 87, 56, 0.85)) drop-shadow(0 0 12px rgba(255, 69, 0, 0.7));
+  }
+  75% {
+    transform: scale(1.04, 0.98) translateY(-1px) rotate(1deg);
+    filter: drop-shadow(0 0 8px rgba(255, 165, 0, 0.9)) drop-shadow(0 0 16px rgba(255, 69, 0, 0.85));
+  }
+  100% {
+    transform: scale(1) translateY(0) rotate(-1deg);
+    filter: drop-shadow(0 0 4px rgba(249, 87, 56, 0.8)) drop-shadow(0 0 10px rgba(255, 140, 0, 0.6));
+  }
+}
+
+@keyframes sparkleShine {
+  0% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.8));
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.22) rotate(15deg);
+    filter: drop-shadow(0 0 10px rgba(250, 204, 21, 1)) drop-shadow(0 0 18px rgba(245, 158, 11, 0.9));
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.8));
+    opacity: 0.9;
+  }
+}
+
+@keyframes trophyBounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
+  }
+  50% {
+    transform: translateY(-3px) rotate(3deg);
+    filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.95)) drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
+  }
+}
+
+@keyframes rocketFlight {
+  0%, 100% {
+    transform: translateY(0) translateX(0) rotate(-2deg);
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
+  }
+  30% {
+    transform: translateY(-3px) translateX(1px) rotate(1deg);
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.8)) drop-shadow(0 0 16px rgba(249, 115, 22, 0.8));
+  }
+  60% {
+    transform: translateY(-2px) translateX(-1px) rotate(0deg);
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.9));
+  }
+}
+
+@keyframes targetPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.95)) drop-shadow(0 0 20px rgba(244, 63, 94, 0.7));
+  }
+}
+
+@keyframes crownFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.7));
+  }
+  50% {
+    transform: translateY(-2.5px) rotate(-4deg);
+    filter: drop-shadow(0 0 12px rgba(234, 179, 8, 1)) drop-shadow(0 0 18px rgba(245, 158, 11, 0.8));
+  }
+}
+
+@keyframes diamondGlitter {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.7));
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 12px rgba(56, 189, 248, 1)) drop-shadow(0 0 20px rgba(99, 102, 241, 0.8));
+  }
+}
+
+@keyframes zapFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(0);
+    filter: drop-shadow(0 0 3px rgba(234, 179, 8, 0.8));
+  }
+  20% {
+    transform: scale(1.15) rotate(-5deg);
+    filter: drop-shadow(0 0 14px rgba(250, 204, 21, 1)) drop-shadow(0 0 24px rgba(249, 115, 22, 0.9));
+  }
+  40% {
+    transform: scale(0.95) rotate(4deg);
+  }
+  60% {
+    transform: scale(1.1) rotate(-2deg);
+  }
+}
+
+@keyframes coinBob {
+  0%, 100% {
+    transform: translateY(0) rotateY(0deg);
+    filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.6));
+  }
+  50% {
+    transform: translateY(-3px) rotateY(25deg);
+    filter: drop-shadow(0 0 12px rgba(234, 179, 8, 0.95)) drop-shadow(0 0 18px rgba(245, 158, 11, 0.8));
+  }
+}
+
+.animate-flame {
+  display: inline-block;
+  animation: flameBurn 1.6s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+.animate-sparkle {
+  display: inline-block;
+  animation: sparkleShine 4s ease-in-out infinite;
+  transform-origin: center center;
+}
+.animate-trophy {
+  display: inline-block;
+  animation: trophyBounce 2.4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+.animate-rocket {
+  display: inline-block;
+  animation: rocketFlight 2.2s ease-in-out infinite;
+  transform-origin: center center;
+}
+.animate-target {
+  display: inline-block;
+  animation: targetPulse 1.8s ease-in-out infinite;
+  transform-origin: center center;
+}
+.animate-crown {
+  display: inline-block;
+  animation: crownFloat 2.6s ease-in-out infinite;
+  transform-origin: center center;
+}
+.animate-diamond {
+  display: inline-block;
+  animation: diamondGlitter 2.2s ease-in-out infinite;
+  transform-origin: center center;
+}
+.animate-zap {
+  display: inline-block;
+  animation: zapFlicker 1.4s ease-in-out infinite;
+  transform-origin: center center;
+}
+.animate-coin {
+  display: inline-block;
+  animation: coinBob 2.5s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes barRise {
+  0%, 100% { transform: scaleY(1); filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.6)); }
+  50% { transform: scaleY(1.18); filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.9)); }
+}
+.animate-chart {
+  display: inline-block;
+  animation: barRise 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes bookFlutter {
+  0%, 100% { transform: rotate(0deg) translateY(0); filter: drop-shadow(0 0 3px rgba(168, 85, 247, 0.6)); }
+  50% { transform: rotate(-5deg) translateY(-2px); filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.9)); }
+}
+.animate-book {
+  display: inline-block;
+  animation: bookFlutter 2.4s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes hourglassFlip {
+  0%, 40% { transform: rotate(0deg); }
+  50%, 90% { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+.animate-hourglass {
+  display: inline-block;
+  animation: hourglassFlip 4s ease-in-out infinite;
+  transform-origin: center center;
+  filter: drop-shadow(0 0 5px rgba(244, 63, 94, 0.6));
+}
+
+@keyframes cyberScreen {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(14, 165, 233, 0.6)); }
+  50% { transform: scale(1.12); filter: drop-shadow(0 0 12px rgba(14, 165, 233, 1)); }
+}
+.animate-code {
+  display: inline-block;
+  animation: cyberScreen 2.2s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes penScribble {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  25% { transform: rotate(-6deg) translateX(-1px); }
+  75% { transform: rotate(6deg) translateX(1px); }
+}
+.animate-write {
+  display: inline-block;
+  animation: penScribble 1.8s ease-in-out infinite;
+  transform-origin: bottom right;
+}
+
+@keyframes botThink {
+  0%, 100% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.7)); }
+  50% { transform: scale(1.14) translateY(-2px); filter: drop-shadow(0 0 14px rgba(99, 102, 241, 1)); }
+}
+.animate-bot {
+  display: inline-block;
+  animation: botThink 2s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes userPresence {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.5)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8)); }
+}
+.animate-user {
+  display: inline-block;
+  animation: userPresence 2.6s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes teacherWave {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(4deg) translateY(-2px); }
+}
+.animate-teacher {
+  display: inline-block;
+  animation: teacherWave 2.8s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes paletteTilt {
+  0%, 100% { transform: rotate(0deg) scale(1); filter: drop-shadow(0 0 3px rgba(236, 72, 153, 0.6)); }
+  50% { transform: rotate(12deg) scale(1.12); filter: drop-shadow(0 0 12px rgba(236, 72, 153, 0.9)); }
+}
+.animate-palette {
+  display: inline-block;
+  animation: paletteTilt 2.5s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes shieldDefend {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.6)); }
+  50% { transform: scale(1.12); filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.95)); }
+}
+.animate-shield {
+  display: inline-block;
+  animation: shieldDefend 2s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes letterBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(-5deg); }
+}
+.animate-mail {
+  display: inline-block;
+  animation: letterBounce 2.3s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes brickStack {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.animate-brick {
+  display: inline-block;
+  animation: brickStack 2s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes growthTrend {
+  0%, 100% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 3px rgba(34, 197, 94, 0.6)); }
+  50% { transform: scale(1.15) translateY(-2px); filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.9)); }
+}
+.animate-growth {
+  display: inline-block;
+  animation: growthTrend 2s ease-in-out infinite;
+  transform-origin: bottom left;
+}
+
+@keyframes siteFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+.animate-site-fade-in {
+  animation: siteFadeIn 0.45s var(--ease-glass) both;
+}
+
+@keyframes orbDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(3%, -4%, 0) scale(1.06); }
+  66% { transform: translate3d(-2%, 3%, 0) scale(0.97); }
+}
+.animate-orb {
+  animation: orbDrift 24s ease-in-out infinite;
+}
+
+@keyframes scrollHint {
+  0%, 100% { opacity: 0.85; transform: translateY(0); }
+  50% { opacity: 0.45; transform: translateY(5px); }
+}
+.animate-scroll-hint {
+  animation: scrollHint 2.2s ease-in-out infinite;
+}
+
+/* =========================================================================
+   ACCESSIBILITY
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* =========================================================================
+   APP THEME — student cabinet & owner panel
+   Older views used cyan / indigo / violet accents. Inside the apps those
+   palettes are remapped to the brand: cool accents → ember, purple family →
+   warm stone. Success (emerald), warning (amber) and error (rose/red) stay.
+   ========================================================================= */
+.app-theme {
+  --color-cyan-50: #fff7ed; --color-cyan-100: #ffedd5; --color-cyan-200: #fed7aa; --color-cyan-300: #ffcf8f;
+  --color-cyan-400: #ffb45c; --color-cyan-500: #ff8a2b; --color-cyan-600: #ef6c12; --color-cyan-700: #c9540a;
+  --color-cyan-800: #9a3f0a; --color-cyan-900: #7c2d12; --color-cyan-950: #431407;
+  --color-teal-50: #fff7ed; --color-teal-100: #ffedd5; --color-teal-200: #fed7aa; --color-teal-300: #ffcf8f;
+  --color-teal-400: #ffb45c; --color-teal-500: #ff8a2b; --color-teal-600: #ef6c12; --color-teal-700: #c9540a;
+  --color-teal-800: #9a3f0a; --color-teal-900: #7c2d12; --color-teal-950: #431407;
+  --color-sky-50: #fff7ed; --color-sky-100: #ffedd5; --color-sky-200: #fed7aa; --color-sky-300: #ffcf8f;
+  --color-sky-400: #ffb45c; --color-sky-500: #ff8a2b; --color-sky-600: #ef6c12; --color-sky-700: #c9540a;
+  --color-sky-800: #9a3f0a; --color-sky-900: #7c2d12; --color-sky-950: #431407;
+  --color-indigo-50: #faf8f5; --color-indigo-100: #f2efe9; --color-indigo-200: #e5dfd5; --color-indigo-300: #cfc7bb;
+  --color-indigo-400: #a39b8f; --color-indigo-500: #7d756a; --color-indigo-600: #5f584f; --color-indigo-700: #47423b;
+  --color-indigo-800: #2f2b27; --color-indigo-900: #1f1c19; --color-indigo-950: #12100e;
+  --color-violet-50: #faf8f5; --color-violet-100: #f2efe9; --color-violet-200: #e5dfd5; --color-violet-300: #cfc7bb;
+  --color-violet-400: #a39b8f; --color-violet-500: #7d756a; --color-violet-600: #5f584f; --color-violet-700: #47423b;
+  --color-violet-800: #2f2b27; --color-violet-900: #1f1c19; --color-violet-950: #12100e;
+  --color-purple-50: #faf8f5; --color-purple-100: #f2efe9; --color-purple-200: #e5dfd5; --color-purple-300: #cfc7bb;
+  --color-purple-400: #a39b8f; --color-purple-500: #7d756a; --color-purple-600: #5f584f; --color-purple-700: #47423b;
+  --color-purple-800: #2f2b27; --color-purple-900: #1f1c19; --color-purple-950: #12100e;
+  --color-fuchsia-400: #ffb45c; --color-fuchsia-500: #ff8a2b; --color-fuchsia-600: #ef6c12;
+  --color-blue-50: #faf8f5; --color-blue-100: #f2efe9; --color-blue-200: #e5dfd5; --color-blue-300: #cfc7bb;
+  --color-blue-400: #a39b8f; --color-blue-500: #7d756a; --color-blue-600: #5f584f; --color-blue-700: #47423b;
+  --color-blue-800: #2f2b27; --color-blue-900: #1f1c19; --color-blue-950: #12100e;
+}
+
+/* Page heading card used at the top of app views: calm, light-first */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--color-line);
+  background: linear-gradient(135deg, #fffdfa 0%, #fbf4ea 100%);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-ambient);
+}
+.page-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -8%;
+  top: -60%;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(255, 138, 43, 0.16), transparent);
+  pointer-events: none;
+}
+.dark .page-hero {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, #171411 0%, #0f0d0b 100%);
+  color: #fff;
+}
+/* Copy written for the old dark banners stays readable on the light card */
+html:not(.dark) .page-hero .text-white:not([class*='bg-']):not(.page-hero [class*='bg-'] *) {
+  color: var(--color-ink);
+}
+html:not(.dark) .page-hero :is([class*='text-stone-200'], [class*='text-stone-300'], [class*='text-stone-400'], [class*='text-white/']):not(.page-hero [class*='bg-'] *) {
+  color: var(--color-ink-muted);
+}
+html:not(.dark) .page-hero :is([class*='text-cyan-2'], [class*='text-cyan-3'], [class*='text-cyan-4'], [class*='text-teal-3'], [class*='text-sky-3'], [class*='text-blue-2'], [class*='text-blue-3'], [class*='text-blue-4'], [class*='text-indigo-3'], [class*='text-purple-3'], [class*='text-violet-3'], [class*='text-amber-2'], [class*='text-amber-3'], [class*='text-[#00F5D4]']) {
+  color: var(--color-ember-700);
+}
+html:not(.dark) .page-hero :is([class*='bg-white/5'], [class*='bg-white/10'], [class*='bg-stone-900'], [class*='bg-stone-950'], [class*='bg-black/']) {
+  background-color: rgba(18, 16, 14, 0.05);
+  border-color: var(--color-line);
+}
+
+/* ---- Section transitions (student LMS and owner panel) ----
+   Transform and opacity only. The final keyframe is transform: none, so fixed
+   modals rendered inside a section are not trapped by a containing block. */
+@keyframes sectionIn {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-section { animation: sectionIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.animate-msg { animation: msgIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-section,
+  .animate-msg { animation: none; }
+}
+
+
+/* ---- Auth visual: floating study cards and progress ring ---- */
+@keyframes authFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -12px, 0); }
+}
+@keyframes authPop {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes authRing {
+  from { stroke-dasharray: 0 63; }
+  to { stroke-dasharray: 44 63; }
+}
+.auth-chip { animation: authFloat 7s ease-in-out infinite; }
+.auth-chip-a { animation-delay: 0s; }
+.auth-chip-b { animation-delay: -2.3s; }
+.auth-chip-c { animation-delay: -4.6s; }
+.auth-ring { stroke-dasharray: 0 63; animation: authRing 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.9s forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .auth-chip, .auth-ring { animation: none; }
+  .auth-ring { stroke-dasharray: 44 63; }
+}
+
+/* ---- Auth aurora: moving colour blobs (no video text, transform/opacity only) ---- */
+.auth-aurora { background: #0b0a10; }
+.auth-blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.7; will-change: transform; }
+.auth-blob-a { width: 60%; height: 52%; left: -10%; top: 8%; background: radial-gradient(circle, #ff8a2b 0%, rgba(255,138,43,0) 70%); animation: auroraA 16s ease-in-out infinite; }
+.auth-blob-b { width: 55%; height: 48%; right: -12%; top: 30%; background: radial-gradient(circle, #3b82f6 0%, rgba(59,130,246,0) 70%); animation: auroraB 19s ease-in-out infinite; }
+.auth-blob-c { width: 50%; height: 40%; left: 20%; bottom: -8%; background: radial-gradient(circle, #7c3aed 0%, rgba(124,58,237,0) 70%); opacity: 0.55; animation: auroraC 22s ease-in-out infinite; }
+@keyframes auroraA { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(8%, 6%, 0) scale(1.12); } }
+@keyframes auroraB { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-10%, 8%, 0) scale(0.92); } }
+@keyframes auroraC { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(6%, -8%, 0) scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .auth-blob { animation: none; } }
+
+/* ---- Auth visual: bright colour field, moving light, floating cards ---- */
+.auth-field { background: linear-gradient(135deg, #ffbf6b 0%, #ff7a3d 32%, #e8457a 64%, #7b4cff 100%); }
+.auth-dots { background-image: radial-gradient(rgba(255, 255, 255, 0.5) 1.2px, transparent 1.2px); background-size: 24px 24px; opacity: 0.3; }
+.auth-orb { position: absolute; border-radius: 50%; filter: blur(50px); mix-blend-mode: screen; opacity: 0.85; animation: auroraA 16s ease-in-out infinite; }
+.auth-orb-1 { width: 420px; height: 420px; left: -110px; top: -90px; background: radial-gradient(circle, #fff1cf 0%, rgba(255, 241, 207, 0) 70%); }
+.auth-orb-2 { width: 460px; height: 460px; right: -150px; top: 28%; background: radial-gradient(circle, #8fdcff 0%, rgba(143, 220, 255, 0) 70%); animation-name: auroraB; animation-duration: 19s; }
+.auth-orb-3 { width: 380px; height: 380px; left: 14%; bottom: -140px; background: radial-gradient(circle, #ffd0f5 0%, rgba(255, 208, 245, 0) 70%); animation-name: auroraC; animation-duration: 23s; }
+.auth-float { color: #fff; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); box-shadow: 0 26px 50px -24px rgba(70, 20, 80, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4); animation: authFloat 7s ease-in-out infinite; }
+.auth-float-a { animation-delay: 0s; }
+.auth-float-b { animation-delay: -2.3s; }
+.auth-float-c { animation-delay: -4.6s; }
+.auth-float-d { animation-delay: -1.2s; }
+.auth-progress { transform-origin: left center; animation: authProgress 3.6s ease-in-out infinite alternate; }
+@keyframes authProgress { from { transform: scaleX(0.18); } to { transform: scaleX(0.9); } }
+.auth-bar { transform-origin: bottom center; animation: authBar 1.4s ease-in-out infinite alternate; }
+@keyframes authBar { from { transform: scaleY(0.35); } to { transform: scaleY(1); } }
+.auth-flame { transform-origin: bottom center; animation: authFlame 1.6s ease-in-out infinite; }
+@keyframes authFlame { 0%, 100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.12) rotate(3deg); } }
+.auth-spin { animation: authSpin 24s linear infinite; }
+@keyframes authSpin { to { transform: rotate(360deg); } }
+.auth-ring-arc { animation: authArc 4s ease-in-out infinite alternate; }
+@keyframes authArc { from { stroke-dasharray: 20 164; } to { stroke-dasharray: 120 164; } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-orb, .auth-float, .auth-progress, .auth-bar, .auth-flame, .auth-spin, .auth-ring-arc { animation: none; }
+}
+
+/* ---- Liquid glass: translucent body, bright rim, slow moving sheen (transform only) ---- */
+.liquid-glass {
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.42) 48%, rgba(255, 255, 255, 0.64) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  box-shadow: 0 22px 50px -24px rgba(140, 70, 20, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -10px 24px -18px rgba(255, 140, 60, 0.25);
+}
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.85) 50%, transparent 62%);
+  transform: translate3d(-130%, 0, 0);
+  animation: liquidSheen 7s ease-in-out infinite;
+}
+@keyframes liquidSheen {
+  0%, 60% { transform: translate3d(-130%, 0, 0); }
+  100% { transform: translate3d(130%, 0, 0); }
+}
+.liquid-glass.header-solid { background: rgba(255, 255, 255, 0.95); }
+html.dark .liquid-glass.header-solid { background: rgba(20, 17, 15, 0.93); }
+
+html.dark .liquid-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* ---- Hero: colour mesh, dot grid, shimmering headline, CTA sheen ---- */
+.hero-blob { position: absolute; border-radius: 50%; opacity: 0.9; mix-blend-mode: multiply; will-change: transform; }
+html.dark .hero-blob { mix-blend-mode: screen; opacity: 0.45; }
+.hero-dots {
+  background-image: radial-gradient(rgba(18, 16, 14, 0.16) 1px, transparent 1.2px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse at 60% 40%, #000 22%, transparent 74%);
+  mask-image: radial-gradient(ellipse at 60% 40%, #000 22%, transparent 74%);
+}
+html.dark .hero-dots { background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1.2px); }
+.hero-shimmer {
+  /* Softer highlight, and it moves only for a moment in each cycle: the headline rests the rest of the time. */
+  background-image: linear-gradient(100deg, #ff7a2e 0%, #ff6a1f 40%, #ffb27a 50%, #ff6a1f 60%, #ff7a2e 100%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: heroShimmer 16s ease-in-out infinite;
+}
+@keyframes heroShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  8% { background-position: 100% 50%; }
+  16% { background-position: 0% 50%; }
+}
+.hero-cta-sheen {
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.5) 50%, transparent 65%);
+  transform: translate3d(-125%, 0, 0);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hero-cta:hover .hero-cta-sheen { transform: translate3d(125%, 0, 0); }
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass::before, .hero-blob, .hero-shimmer { animation: none; }
+  .hero-shimmer { color: #ff5e1a; background: none; -webkit-text-fill-color: #ff5e1a; }
+}
+
+/* ---- Auth visual v2: pointer depth, light beam, live dot, highlight ---- */
+.auth-depth { translate: calc(var(--px, 0) * var(--d, 1) * 26px) calc(var(--py, 0) * var(--d, 1) * 26px); transition: translate 0.25s ease-out; }
+.auth-beam {
+  position: absolute;
+  left: -25%;
+  top: 28%;
+  width: 150%;
+  height: 34%;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.28) 50%, transparent 80%);
+  transform: rotate(-14deg);
+  animation: authBeam 10s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes authBeam {
+  0%, 100% { transform: rotate(-14deg) translate3d(-18%, 0, 0); }
+  50% { transform: rotate(-14deg) translate3d(18%, 0, 0); }
+}
+.auth-live { animation: authLive 1.4s ease-in-out infinite; }
+@keyframes authLive { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+.auth-hl { position: relative; display: inline-block; isolation: isolate; color: #fff; }
+.auth-hl::before {
+  content: '';
+  position: absolute;
+  left: -0.08em;
+  right: -0.08em;
+  top: 0.12em;
+  bottom: 0.02em;
+  z-index: -1;
+  border-radius: 0.32em;
+  background: rgba(255, 255, 255, 0.24);
+  transform-origin: left center;
+  animation: authHl 4.5s ease-in-out infinite;
+}
+@keyframes authHl { 0%, 100% { transform: scaleX(0.96); } 50% { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-beam, .auth-live, .auth-hl::before { animation: none; }
+  .auth-depth { translate: none; }
+}
+
+.results-orb { animation: levelsFloat 4.5s ease-in-out infinite; }
+
+/* ---- Edubek avatar: bob, blink, talk, waves ---- */
+.edubek-float { animation: edubekBob 4.2s ease-in-out infinite; }
+@keyframes edubekBob { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -4px, 0); } }
+.edubek-eye { transition: transform 0.22s ease-out; }
+.edubek-blink { transform-box: fill-box; transform-origin: center; animation: edubekBlink 4.8s infinite; }
+@keyframes edubekBlink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.08); } }
+.edubek-mouth { transform-box: fill-box; transform-origin: center; animation: edubekTalk 0.28s ease-in-out infinite alternate; }
+@keyframes edubekTalk { from { transform: scaleY(0.3); } to { transform: scaleY(1.3); } }
+.edubek-wave { animation: edubekWave 2.4s ease-out infinite; }
+.edubek-wave-2 { animation-delay: 1.2s; }
+@keyframes edubekWave { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.4); opacity: 0; } }
+.edubek-pulse { animation: edubekGlowPulse 2s ease-in-out infinite; }
+@keyframes edubekGlowPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .edubek-float, .edubek-blink, .edubek-mouth, .edubek-wave, .edubek-pulse { animation: none; }
+}
+
+/* ---- Landing: B1-C1 road (Edubek walks it, stations light up, confetti) ---- */
+.levels-road-base { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.levels-road { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.levels-road-mask { stroke-dasharray: 1; stroke-dashoffset: 1; }
+/* The road is drawn by scroll position: LevelsSection sets stroke-dashoffset on every frame. */
+.levels-road-dash { opacity: 0; }
+.levels-root[data-in] .levels-road-dash { animation: levelsMarch 1.1s linear infinite; }
+@keyframes levelsMarch { to { stroke-dashoffset: -30; } }
+.levels-blob { position: absolute; border-radius: 50%; opacity: 0.6; animation: auroraA 16s ease-in-out infinite; -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 100%); mask-image: radial-gradient(closest-side, #000 30%, transparent 100%); }
+.levels-blob:nth-child(2) { animation-name: auroraB; }
+.levels-blob:nth-child(3) { animation-name: auroraC; }
+.levels-star { position: absolute; width: 10px; height: 10px; border-radius: 999px; background: #fff; box-shadow: 0 0 14px 4px rgba(255, 190, 120, 0.8); animation: levelsTwinkle 3.2s ease-in-out infinite; }
+@keyframes levelsTwinkle { 0%, 100% { opacity: 0.25; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.25); } }
+.levels-pop { animation: levelsPop 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.4); }
+@keyframes levelsPop { 0% { transform: scale(0.55); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.levels-part { transform: translate(-50%, -50%); animation: levelsPart 1.1s cubic-bezier(0.2, 0.7, 0.3, 1) forwards; pointer-events: none; }
+@keyframes levelsPart {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.25); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .levels-road-base, .levels-road, .levels-road-mask { stroke-dashoffset: 0; transition: none; }
+  .levels-road-dash, .levels-blob, .levels-star, .levels-pop, .levels-part { animation: none; }
+  .levels-root[data-in] .levels-road-dash { opacity: 0; }
+}
+
+
+/* ---- VIP gift card: a slowly turning conic rim and a gently bobbing icon ---- */
+@property --gift-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.gift-card { position: relative; }
+.gift-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--gift-angle), rgba(255,154,60,0.9), rgba(232,69,122,0.7), rgba(155,120,255,0.7), rgba(255,154,60,0.9));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: giftSpin 6s linear infinite;
+}
+@keyframes giftSpin { to { --gift-angle: 360deg; } }
+.gift-bob { animation: giftBob 3.2s ease-in-out infinite; }
+@keyframes giftBob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .gift-card::after, .gift-bob { animation: none; } }
+
+/* Edubek's chat panel sits over page text, so its glass is denser than a card's. */
+.liquid-glass.edubek-panel { background: linear-gradient(135deg, rgba(255, 252, 248, 0.95), rgba(255, 246, 236, 0.9)); }
+html.dark .liquid-glass.edubek-panel { background: linear-gradient(135deg, rgba(34, 28, 24, 0.94), rgba(24, 20, 17, 0.92)); }
+
+/* ---- Lite mode (weak devices): same look, without the costly parts. See src/lib/motion/perf.ts ---- */
+html.perf-lite *,
+html.perf-lite *::before,
+html.perf-lite *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.perf-lite .liquid-glass {
+  background: linear-gradient(135deg, rgba(255, 253, 250, 0.96), rgba(255, 247, 238, 0.92));
+}
+html.perf-lite.dark .liquid-glass,
+html.dark.perf-lite .liquid-glass {
+  background: linear-gradient(135deg, rgba(38, 31, 26, 0.96), rgba(28, 23, 19, 0.94));
+}
+html.perf-lite .liquid-glass::before,
+html.perf-lite .gift-card::after,
+html.perf-lite .gift-bob,
+html.perf-lite .animate-orb,
+html.perf-lite .hero-blob,
+html.perf-lite .hero-shimmer,
+html.perf-lite .edubek-float,
+html.perf-lite .edubek-glow {
+  animation: none !important;
+}
+/* Decorative blurred blobs are the costliest paint on weak GPUs; the page background's own light stays. */
+html.perf-lite .soft-blob {
+  display: none;
+}
+/* Decorative glows: a soft-edged disc instead of a blur filter. A blur re-runs on every frame the page moves;
+   a mask is drawn once, so the same light costs far less while scrolling. */
+.soft-blob {
+  filter: none !important;
+  -webkit-mask-image: radial-gradient(closest-side, #000 28%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 28%, transparent 100%);
+}
+
+/* Hero skill chips float on the compositor (translate only): no script runs per frame for them. */
+@keyframes heroChipFloat {
+  from { translate: 0 0; }
+  to { translate: 0 -10px; }
+}
+.hero-chip-float { animation: heroChipFloat 2.6s ease-in-out infinite alternate; }
+html[data-scrolling] .hero-chip-float { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .hero-chip-float { animation: none; } }
+
+/* Skill chips over the instructor photo: solid enough to read in both themes. */
+.hero-chip { background: rgba(255, 253, 250, 0.94); }
+html.dark .hero-chip { background: rgba(22, 17, 14, 0.9); }
+
+/* While the reader scrolls (html[data-scrolling], see src/lib/motion/scrollState.ts) the ambient loops pause:
+   every frame goes to the scroll itself, and they resume where they stopped when it ends. */
+html[data-scrolling] .animate-orb,
+html[data-scrolling] .hero-blob,
+html[data-scrolling] .hero-shimmer,
+html[data-scrolling] .hero-ring,
+html[data-scrolling] .levels-blob,
+html[data-scrolling] .levels-star,
+html[data-scrolling] .results-orb,
+html[data-scrolling] .liquid-glass::before,
+html[data-scrolling] .gift-card::after,
+html[data-scrolling] .gift-bob,
+html[data-scrolling] .teacher-ring,
+html[data-scrolling] .edubek-float {
+  animation-play-state: paused;
+}
+/* Sections far below the fold are not painted until they are near. */
+html.perf-lite section[id] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 760px;
+}
+
+/* ---- Scroll-driven motion on CSS timelines ----
+   Parallax, headline growth and the hero's exit run on the compositor with no script per frame, so they stay
+   smooth on weak computers (and lite mode keeps them). Browsers without support use the script in ScrollReveals. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    html.sd-native [data-grow] {
+      animation: sdGrow linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 95%;
+      transform-origin: 0% 100%;
+    }
+    html.sd-native [data-drift] {
+      animation: sdDrift linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    html.sd-native [data-parallax]:not(.hero-blob) {
+      animation: sdPar linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    html.sd-native [data-sd-exit] {
+      animation: sdExit linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 85vh;
+    }
+    html.sd-native [data-sd-exit='card'] {
+      animation-name: sdExitCard;
+    }
+    html.sd-native .sd-orb-1 { animation: sdOrb1 linear both; animation-timeline: scroll(root); }
+    html.sd-native .sd-orb-2 { animation: sdOrb2 linear both; animation-timeline: scroll(root); }
+    html.sd-native .sd-orb-3 { animation: sdOrb3 linear both; animation-timeline: scroll(root); }
+  }
+}
+@keyframes sdGrow { from { scale: 0.86; } to { scale: 1; } }
+@keyframes sdDrift { from { translate: 0 var(--sd-d, 20px); } to { translate: 0 calc(var(--sd-d, 20px) * -1); } }
+@keyframes sdPar { from { translate: 0 calc(var(--sd, 0.15) * 280px); } to { translate: 0 calc(var(--sd, 0.15) * -280px); } }
+/* The exit keeps the hero readable while it leaves (it used to fade to 0.12-0.2 and looked broken on phones). */
+@keyframes sdExit { to { translate: 0 -64px; scale: 0.965; opacity: 0.55; } }
+@keyframes sdExitCard { to { translate: 0 -140px; scale: 0.93; opacity: 0.6; rotate: 3deg; } }
+@keyframes sdOrb1 { to { translate: 0 -300px; } }
+@keyframes sdOrb2 { to { translate: -140px 380px; } }
+@keyframes sdOrb3 { to { translate: 260px -520px; } }
+
+/* A slowly turning light ring behind the hero card (transform only). */
+.hero-ring {
+  background: conic-gradient(from 0deg, rgba(255, 154, 60, 0.55), rgba(232, 69, 122, 0.35), rgba(120, 140, 255, 0.4), rgba(255, 154, 60, 0.55));
+  filter: blur(26px);
+  opacity: 0.55;
+  animation: heroRing 18s linear infinite;
+}
+@keyframes heroRing { to { transform: rotate(360deg); } }
+html.perf-lite .hero-ring { display: none; }
+@media (prefers-reduced-motion: reduce) { .hero-ring { animation: none; } }
+
+/* ---- Polish: dark-mode contrast, one icon weight, press feedback, soft image arrival ---- */
+html.dark { --color-ink-muted: #b9b0a3; }
+svg.lucide[stroke-width='2'] { stroke-width: 1.85; }
+button:not(:disabled):not([role='switch']):active { scale: 0.97; }
+@keyframes popIn { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+.pop-in { animation: popIn 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+img[data-img] { transition: opacity 0.5s ease; }
+img[data-img='wait'] { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .pop-in { animation: none; } button:not(:disabled):active { scale: 1; } }
+
+/* Printing the progress report ("PDF hisobot"): only the report is drawn. */
+@media print {
+  body.printing-report * { visibility: hidden !important; }
+  body.printing-report #print-report, body.printing-report #print-report * { visibility: visible !important; }
+  body.printing-report #print-report { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+}
+#print-report { display: none; }
+
+/* "Kam harakat" chosen in Profile (or by the system): decorative loops stop, nothing else changes. */
+html.motion-off *, html.motion-off *::before, html.motion-off *::after {
+  animation-iteration-count: 1 !important;
+  animation-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html.motion-off .animate-spin { animation: spin 1s linear infinite !important; animation-duration: 1s !important; animation-iteration-count: infinite !important; }
+
+/* ---- Edubek's mood extras ---- */
+.edubek-tear { animation: edubekTear 2.6s ease-in infinite; transform-box: fill-box; }
+@keyframes edubekTear { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(26px); opacity: 0; } }
+.edubek-steam circle { animation: edubekSteam 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes edubekSteam { 0% { transform: translateY(0) scale(0.6); opacity: 0.9; } 100% { transform: translateY(-16px) scale(1.6); opacity: 0; } }
+.edubek-hearts { animation: edubekBob 1.8s ease-in-out infinite; transform-box: fill-box; }
+.edubek-shake { animation: edubekShake 0.5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes edubekShake { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.edubek-z { animation: edubekZ 2.4s ease-in-out infinite; transform-box: fill-box; }
+@keyframes edubekZ { 0% { transform: translate(0, 6px); opacity: 0; } 40% { opacity: 1; } 100% { transform: translate(6px, -10px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .edubek-tear, .edubek-steam circle, .edubek-hearts, .edubek-shake, .edubek-z { animation: none; } }
+html.perf-lite .edubek-steam circle, html.perf-lite .edubek-tear, html.perf-lite .edubek-z, html.perf-lite .edubek-shake { animation: none !important; }
+
+/* Edubek avatar motion (the figure sways; the artwork itself is one piece).
+   Turned off by the owner setting or by the reduced-motion preference. */
+@keyframes edubekIdle { 0%,100% { transform: translateY(0) translateX(0) rotateY(0deg); } 12% { transform: translateY(-3px) translateX(-6px) rotateY(-14deg); } 25% { transform: translateY(0) translateX(0) rotateY(0deg); } 37% { transform: translateY(-3px) translateX(6px) rotateY(14deg); } 50% { transform: translateY(0) rotateY(0deg); } }
+@keyframes edubekListen { 0%,100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes edubekTalk { 0%,100% { transform: translateY(0) scale(1); } 25% { transform: translateY(-3px) scale(1.02); } 75% { transform: translateY(1px) scale(0.99); } }
+@keyframes edubekThink { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes edubekHappy { 0%,100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-9px) rotate(-3deg); } 60% { transform: translateY(0) rotate(2deg); } }
+@keyframes edubekSad { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(3px) rotate(-2deg); } }
+@keyframes edubekAngry { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+@keyframes edubekSurprised { 0% { transform: scale(0.97); } 40% { transform: scale(1.04) translateY(-4px); } 100% { transform: scale(1); } }
+@keyframes edubekSleepy { 0%,100% { transform: translateY(0) rotate(2deg); } 50% { transform: translateY(3px) rotate(-1deg); } }
+
+.edubek-anim-idle { animation: edubekIdle 7s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-listen { animation: edubekListen 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-talk { animation: edubekTalk 0.55s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-think { animation: edubekThink 2.2s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-happy { animation: edubekHappy 1.6s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-sad { animation: edubekSad 3.6s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-angry { animation: edubekAngry 0.5s ease-in-out infinite; transform-origin: 50% 90%; }
+.edubek-anim-surprised { animation: edubekSurprised 0.8s ease-out 1; transform-origin: 50% 90%; }
+.edubek-anim-sleepy { animation: edubekSleepy 5s ease-in-out infinite; transform-origin: 50% 90%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .edubek-anim-idle, .edubek-anim-listen, .edubek-anim-talk, .edubek-anim-think, .edubek-anim-happy,
+  .edubek-anim-sad, .edubek-anim-angry, .edubek-anim-surprised, .edubek-anim-sleepy { animation: none; }
+}
+
+/* Edubek avatar: the head and the body move separately (see EdubekAvatar.tsx).
+   Motion is turned off by the owner setting (no class) or by the reduced-motion preference. */
+@keyframes edubekHeadLook { 0%,100% { transform: translateX(0) rotateY(0deg) rotate(0deg); } 12% { transform: translateX(-4px) rotateY(-9deg) rotate(-1.5deg); } 25% { transform: translateX(0) rotateY(0deg) rotate(0deg); } 37% { transform: translateX(4px) rotateY(9deg) rotate(1.5deg); } 50% { transform: translateX(0) rotateY(0deg) rotate(0deg); } }
+@keyframes edubekHeadNod { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(2px) rotate(2.5deg); } }
+@keyframes edubekHeadTilt { 0%,100% { transform: rotate(-3deg) translateX(-2px); } 50% { transform: rotate(3deg) translateX(2px); } }
+@keyframes edubekHeadHappy { 0%,100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-7px) rotate(-4deg); } 60% { transform: translateY(0) rotate(3deg); } }
+@keyframes edubekHeadDroop { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(3px) rotate(-4deg); } }
+@keyframes edubekHeadShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-1.5deg); } 75% { transform: translateX(3px) rotate(1.5deg); } }
+@keyframes edubekHeadJolt { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-5px) scale(1.04); } 100% { transform: translateY(0) scale(1); } }
+@keyframes edubekHeadSleepy { 0%,100% { transform: rotate(3deg) translateY(0); } 50% { transform: rotate(-2deg) translateY(3px); } }
+@keyframes edubekBodyBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes edubekBodyTalk { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+@keyframes edubekBodyHappy { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
+@keyframes edubekBodySad { 0%,100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+
+.edubek-head-idle { animation: edubekHeadLook 7s ease-in-out infinite; }
+.edubek-head-listen { animation: edubekHeadTilt 2.4s ease-in-out infinite; }
+.edubek-head-talk { animation: edubekHeadNod 0.55s ease-in-out infinite; }
+.edubek-head-think { animation: edubekHeadTilt 3.2s ease-in-out infinite; }
+.edubek-head-happy { animation: edubekHeadHappy 1.6s ease-in-out infinite; }
+.edubek-head-sad { animation: edubekHeadDroop 3.6s ease-in-out infinite; }
+.edubek-head-angry { animation: edubekHeadShake 0.5s ease-in-out infinite; }
+.edubek-head-surprised { animation: edubekHeadJolt 0.8s ease-out 1; }
+.edubek-head-sleepy { animation: edubekHeadSleepy 5s ease-in-out infinite; }
+.edubek-body-idle { animation: edubekBodyBob 4.2s ease-in-out infinite; }
+.edubek-body-talk { animation: edubekBodyTalk 0.55s ease-in-out infinite; }
+.edubek-body-happy { animation: edubekBodyHappy 1.6s ease-in-out infinite; }
+.edubek-body-sad { animation: edubekBodySad 3.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .edubek-head-idle, .edubek-head-listen, .edubek-head-talk, .edubek-head-think, .edubek-head-happy,
+  .edubek-head-sad, .edubek-head-angry, .edubek-head-surprised, .edubek-head-sleepy,
+  .edubek-body-idle, .edubek-body-talk, .edubek-body-happy, .edubek-body-sad { animation: none; }
+}
+
+/* Edubek vector avatar (EdubekAvatar.tsx): 2D motion for the separate groups. Later rules replace the earlier head/body ones. */
+@keyframes edubekHeadLook { 0%,100% { transform: translateX(0) rotate(0deg) scaleX(1); } 12% { transform: translateX(-5px) rotate(-6deg) scaleX(0.94); } 25% { transform: translateX(0) rotate(0deg) scaleX(1); } 37% { transform: translateX(5px) rotate(6deg) scaleX(0.94); } 50% { transform: translateX(0) rotate(0deg) scaleX(1); } }
+@keyframes edubekHeadNod { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(2px) rotate(2.5deg); } }
+@keyframes edubekHeadTilt { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes edubekHeadHappy { 0%,100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-6px) rotate(-3deg); } 60% { transform: translateY(0) rotate(2deg); } }
+@keyframes edubekHeadDroop { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(3px) rotate(-5deg); } }
+@keyframes edubekHeadShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-2deg); } 75% { transform: translateX(3px) rotate(2deg); } }
+@keyframes edubekHeadJolt { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-5px) scale(1.04); } 100% { transform: translateY(0) scale(1); } }
+@keyframes edubekHeadSleepy { 0%,100% { transform: rotate(4deg) translateY(0); } 50% { transform: rotate(-2deg) translateY(3px); } }
+@keyframes edubekArmTalk { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-8deg); } }
+@keyframes edubekArmWave { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-28deg); } }
+@keyframes edubekBlink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes edubekMouth { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.4); } }
+@keyframes edubekBodyBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes edubekBodyTalk { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+@keyframes edubekBodyHappy { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-3px); } }
+@keyframes edubekBodySad { 0%,100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+
+.edubek-head-idle { animation: edubekHeadLook 7s ease-in-out infinite; }
+.edubek-head-listen { animation: edubekHeadTilt 2.4s ease-in-out infinite; }
+.edubek-head-talk { animation: edubekHeadNod 0.55s ease-in-out infinite; }
+.edubek-head-think { animation: edubekHeadTilt 3.2s ease-in-out infinite; }
+.edubek-head-happy { animation: edubekHeadHappy 1.6s ease-in-out infinite; }
+.edubek-head-sad { animation: edubekHeadDroop 3.6s ease-in-out infinite; }
+.edubek-head-angry { animation: edubekHeadShake 0.5s ease-in-out infinite; }
+.edubek-head-surprised { animation: edubekHeadJolt 0.8s ease-out 1; }
+.edubek-head-sleepy { animation: edubekHeadSleepy 5s ease-in-out infinite; }
+.edubek-arm-talk { animation: edubekArmTalk 0.6s ease-in-out infinite; }
+.edubek-arm-wave { animation: edubekArmWave 1.2s ease-in-out infinite; }
+.edubek-body-idle { animation: edubekBodyBob 4.2s ease-in-out infinite; }
+.edubek-body-talk { animation: edubekBodyTalk 0.55s ease-in-out infinite; }
+.edubek-body-happy { animation: edubekBodyHappy 1.6s ease-in-out infinite; }
+.edubek-body-sad { animation: edubekBodySad 3.6s ease-in-out infinite; }
+.edubek-eye { transform-box: fill-box; transform-origin: center; animation: edubekBlink 4.5s ease-in-out infinite; }
+.edubek-mouth { transform-box: fill-box; transform-origin: center; animation: edubekMouth 0.35s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .edubek-head-idle, .edubek-head-listen, .edubek-head-talk, .edubek-head-think, .edubek-head-happy,
+  .edubek-head-sad, .edubek-head-angry, .edubek-head-surprised, .edubek-head-sleepy,
+  .edubek-arm-talk, .edubek-arm-wave, .edubek-body-idle, .edubek-body-talk, .edubek-body-happy, .edubek-body-sad,
+  .edubek-eye, .edubek-mouth { animation: none; }
+}
+
+/* EduBek vector avatar: only the parts that need movement have animations (EdubekAvatar.tsx). */
+@keyframes edubekBreath { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes edubekNodSpeak { 0%,100% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(-2deg) translateY(1px); } }
+.edubek-body { animation: edubekBreath 4.5s ease-in-out infinite; }
+.edubek-head-nod { animation: edubekNodSpeak 0.9s ease-in-out infinite; }
+/* Idle look: Edubek turns his head left and right slowly when nobody points at him. */
+@keyframes edubekLook {
+  from { transform: translateX(-5px) rotate(-7deg); }
+  to { transform: translateX(5px) rotate(7deg); }
+}
+.edubek-look { animation: edubekLook 7s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .edubek-body, .edubek-head-nod, .edubek-look { animation: none; }
+}
+
+/* Teacher photo placeholder: a slowly turning ember ring (transform only). */
+.teacher-ring {
+  background: conic-gradient(from 0deg, #ffa149, #f2650f, #ffe2c2, #ffa149);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: teacherRing 10s linear infinite;
+}
+@keyframes teacherRing { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .teacher-ring { animation: none; } }
+html.perf-lite .teacher-ring { animation: none; }
+html.perf-lite .edubek-look { animation: none; }
+
+/* Phone: the Edubek dock steps aside while the page scrolls, so it never covers the text being read. */
+.edubek-dock { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease; }
+@media (max-width: 639px) {
+  .edubek-dock-away { transform: translate3d(-130%, 0, 0); opacity: 0; pointer-events: none; }
+}
+@media (prefers-reduced-motion: reduce) { .edubek-dock { transition: none; } }
+
+/* =========================================================================
+   A8 motion system
+   Motion rules of the site, kept together. Values mirror src/lib/motion/tokens.ts.
+   Rules in this block come last and replace the earlier rules of the same name, so the
+   older copies above are dead code and can be removed when their block is next touched.
+   Transform and opacity only: nothing here animates background-position, filter or SVG geometry per frame.
+   ========================================================================= */
+
+/* Edubek's blink scales the eyes from their centre line (y = 72). A view-box origin needs no layout work on each
+   frame; fill-box made the browser lay the avatar out again every frame. */
+.edubek-eye {
+  transform-box: view-box;
+  transform-origin: 0 72px;
+}
+
+/* Edubek's avatar: one soft shadow for the whole figure instead of a feDropShadow filter on each of its parts.
+   The filters were re-run for every part on every frame of the idle motion. The glow on eyes and mouth stays. */
+[filter='url(#edubek-soft)'] {
+  filter: none;
+}
+svg.overflow-visible[viewBox='0 0 200 260'] {
+  filter: drop-shadow(0 3px 8px rgba(42, 35, 96, 0.22));
+}
+
+/* Animated stickers (emoji with a bounce, flame or spin): transform and opacity animate on the compositor.
+   The glow is a fixed drop-shadow now; before, its radius was animated, which repainted the sticker every frame. */
+@keyframes flameBurn {
+  0% { transform: scale(1) translateY(0) rotate(-1deg); }
+  25% { transform: scale(1.08, 0.95) translateY(-1px) rotate(2deg); }
+  50% { transform: scale(0.96, 1.06) translateY(-2px) rotate(-2deg); }
+  75% { transform: scale(1.04, 0.98) translateY(-1px) rotate(1deg); }
+  100% { transform: scale(1) translateY(0) rotate(-1deg); }
+}
+@keyframes sparkleShine {
+  0% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50% { transform: scale(1.22) rotate(15deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+}
+@keyframes trophyBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(3deg); }
+}
+@keyframes rocketFlight {
+  0%, 100% { transform: translateY(0) translateX(0) rotate(-2deg); }
+  30% { transform: translateY(-3px) translateX(1px) rotate(1deg); }
+  60% { transform: translateY(-2px) translateX(-1px) rotate(0deg); }
+}
+@keyframes targetPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+@keyframes crownFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2.5px) rotate(-4deg); }
+}
+@keyframes diamondGlitter {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@keyframes zapFlicker {
+  0%, 100% { transform: scale(1) rotate(0); }
+  20% { transform: scale(1.15) rotate(-5deg); }
+  40% { transform: scale(0.95) rotate(4deg); }
+  60% { transform: scale(1.1) rotate(-2deg); }
+}
+@keyframes coinBob {
+  0%, 100% { transform: translateY(0) rotateY(0deg); }
+  50% { transform: translateY(-3px) rotateY(25deg); }
+}
+@keyframes barRise {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.18); }
+}
+@keyframes bookFlutter {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(-5deg) translateY(-2px); }
+}
+@keyframes cyberScreen {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@keyframes botThink {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.14) translateY(-2px); }
+}
+@keyframes userPresence {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+@keyframes paletteTilt {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(12deg) scale(1.12); }
+}
+@keyframes shieldDefend {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@keyframes growthTrend {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.15) translateY(-2px); }
+}
+.animate-flame { filter: drop-shadow(0 0 6px rgba(249, 87, 56, 0.7)); }
+.animate-sparkle { filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.85)); }
+.animate-trophy { filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.8)); }
+.animate-rocket { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
+.animate-target { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
+.animate-crown { filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.85)); }
+.animate-diamond { filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.85)); }
+.animate-zap { filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.9)); }
+.animate-coin { filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.8)); }
+.animate-chart { filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.7)); }
+.animate-book { filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.7)); }
+.animate-code { filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.8)); }
+.animate-bot { filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.85)); }
+.animate-user { filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.65)); }
+.animate-palette { filter: drop-shadow(0 0 7px rgba(236, 72, 153, 0.75)); }
+.animate-shield { filter: drop-shadow(0 0 7px rgba(239, 68, 68, 0.8)); }
+.animate-growth { filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.75)); }
+
+/* Elements that scroll-linked motion moves get their own layer: a move then changes no pixels of the page underneath,
+   so the browser does not paint the page again on every frame of a scroll. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-parallax],
+  [data-drift],
+  [data-grow],
+  [data-sd-exit] {
+    will-change: transform;
+  }
+}
+
+/* Hero headline shimmer: the gradient rests as a static background (no background-position animation, which
+   repaints the text on every frame). The light sweep is a pseudo-element moved with transform, so it runs on the
+   compositor. It crosses the word once per 16 s cycle (0 to 8 % of the cycle) and rests the rest of the time, as before. */
+.hero-shimmer {
+  position: relative;
+  overflow: hidden;
+  animation: none;
+}
+.hero-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(100deg, transparent 40%, rgba(255, 236, 214, 0.75) 50%, transparent 60%);
+  transform: translate3d(-120%, 0, 0);
+  will-change: transform;
+  animation: heroSweep 16s ease-in-out infinite;
+}
+@keyframes heroSweep {
+  0% { transform: translate3d(-120%, 0, 0); }
+  8% { transform: translate3d(120%, 0, 0); }
+  100% { transform: translate3d(120%, 0, 0); }
+}
+html[data-scrolling] .hero-shimmer::after { animation-play-state: paused; }
+html.perf-lite .hero-shimmer::after { animation: none; transform: translate3d(120%, 0, 0); }
+@media (prefers-reduced-motion: reduce) {
+  .hero-shimmer::after { animation: none; transform: translate3d(120%, 0, 0); }
+}
+
+/* Reduced motion: nothing above moves, as before. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-flame, .animate-sparkle, .animate-trophy, .animate-rocket, .animate-target, .animate-crown, .animate-diamond,
+  .animate-zap, .animate-coin, .animate-chart, .animate-book, .animate-code, .animate-bot, .animate-user, .animate-palette,
+  .animate-shield, .animate-growth {
+    animation: none;
+  }
+}
+
+
+/* Scroll motion is off (SCROLL_MOTION in src/lib/motion/tokens.ts): every scroll-linked element is shown in place. */
+.motion-static [data-reveal],
+.motion-static [data-parallax],
+.motion-static [data-drift],
+.motion-static [data-grow],
+.motion-static [data-sd-exit],
+.motion-static .c1-reveal,
+.motion-static .c1-stage {
+  opacity: 1 !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+  animation: none !important;
+  filter: none !important;
+  will-change: auto !important;
+}
+
+
+/* Hero scroll motion (the only scroll-linked motion on the site). Scroll-driven CSS: no JavaScript per frame,
+   only opacity and transform, and nothing when reduced motion is requested or the browser cannot do it. */
+@keyframes heroTextOut {
+  to { transform: translate3d(0, -64px, 0); opacity: 0.2; }
+}
+@keyframes heroCardOut {
+  to { transform: translate3d(0, -140px, 0) rotate(-3deg) scale(0.94); opacity: 0.3; }
+}
+@keyframes heroHintOut {
+  to { opacity: 0; transform: translate3d(0, 12px, 0); }
+}
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-scroll-text {
+      animation: heroTextOut linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0px 70vh;
+    }
+    .hero-scroll-card {
+      animation: heroCardOut linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0px 90vh;
+    }
+    .hero-scroll-hint {
+      animation: heroHintOut linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0px 25vh;
+    }
+  }
+}
+
+
+/* Level test runner: gentle entrance animations (off for people who prefer reduced motion) */
+@keyframes lvl-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes lvl-pop { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes lvl-fade { from { opacity: 0; } to { opacity: 1; } }
+.lvl-rise { animation: lvl-rise 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.lvl-pop { animation: lvl-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+.lvl-fade { animation: lvl-fade 0.22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .lvl-rise, .lvl-pop, .lvl-fade { animation: none; } }

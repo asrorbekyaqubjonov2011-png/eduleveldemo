@@ -1,0 +1,134 @@
+/**
+ * Telegram deposit bot helpers.
+ * Needs two server settings on Render: TELEGRAM_BOT_TOKEN (from @BotFather) and
+ * TELEGRAM_WEBHOOK_SECRET (any random string; Telegram sends it back on every update).
+ * The owner connects the webhook from the Depozitlar panel.
+ */
+
+/** Telegram's API. TELEGRAM_API_BASE is only for local tests (a fake Telegram server). */
+const API = (process.env.TELEGRAM_API_BASE || 'https://api.telegram.org').replace(/\/$/, '');
+
+/** The site's public address: Render sets RENDER_EXTERNAL_URL; NEXT_PUBLIC_SITE_URL can override it. */
+export function publicBaseUrl(fallbackOrigin: string): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL || process.env.RENDER_EXTERNAL_URL || fallbackOrigin).trim().replace(/\/$/, '');
+}
+
+/** Which bot settings are missing, for the owner's checklist (values are never returned). */
+export function botSetupStatus() {
+  return { tokenSet: botToken().length > 0, secretSet: webhookSecret().length >= 16 };
+}
+
+export function botToken(): string {
+  return (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+}
+
+export function webhookSecret(): string {
+  return (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
+}
+
+const CALL_TIMEOUT_MS = 8000;
+
+/** Button colours (`style`) are removed for a retry, in case Telegram refuses them. */
+function withoutStyle(value: any): any {
+  if (Array.isArray(value)) return value.map(withoutStyle);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) if (k !== 'style') out[k] = withoutStyle(v);
+    return out;
+  }
+  return value;
+}
+
+async function callTelegram(method: string, payload: Record<string, unknown>): Promise<any> {
+  const token = botToken();
+  if (!token) throw new Error('TELEGRAM_BOT_TOKEN sozlanmagan');
+  const res = await fetch(`${API}/bot${token}/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(CALL_TIMEOUT_MS)
+  });
+  return res.json().catch(() => ({}));
+}
+
+/** When Telegram refuses button colours, they are left out for 30 minutes (one failed call, not two per message). */
+let coloursRefusedAt = 0;
+
+/** Methods whose text is sent in Telegram's HTML mode (bold titles, tap-to-copy codes). */
+const HTML_METHODS = new Set(['sendMessage', 'editMessageText']);
+
+async function sendOnce(method: string, payload: Record<string, unknown>): Promise<any> {
+  const coloursOff = coloursRefusedAt > 0 && Date.now() - coloursRefusedAt < 30 * 60 * 1000;
+  let json = await callTelegram(method, coloursOff ? withoutStyle(payload) : payload);
+  if (!json.ok && !coloursOff && JSON.stringify(payload).includes('"style"') && /button|style|markup|keyboard|reply/i.test(String(json.description || ''))) {
+    coloursRefusedAt = Date.now();
+    json = await callTelegram(method, withoutStyle(payload));
+  }
+  return json;
+}
+
+/** Removes the HTML tags and entities, for a plain-text resend when Telegram rejects the markup. */
+export function stripHtml(text: string): string {
+  return text.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+export async function telegramApi(method: string, payload: Record<string, unknown> = {}): Promise<any> {
+  const html = HTML_METHODS.has(method) && typeof payload.text === 'string' && payload.parse_mode === undefined;
+  let json = await sendOnce(method, html ? { ...payload, parse_mode: 'HTML' } : payload);
+  // A stray "<" or "&" in a message makes Telegram refuse the markup: send the same text as plain text instead.
+  if (!json.ok && html && /parse entities|can't parse|unsupported start tag/i.test(String(json.description || ''))) {
+    json = await sendOnce(method, { ...payload, text: stripHtml(String(payload.text)) });
+  }
+  if (!json.ok) throw new Error(json.description || `Telegram ${method} xatosi`);
+  return json.result;
+}
+
+/** Downloads a file sent to the bot (at most maxBytes). The bot token stays on the server. */
+export async function downloadTelegramFile(fileId: string, maxBytes = 8 * 1024 * 1024): Promise<Buffer> {
+  const info = await telegramApi('getFile', { file_id: fileId });
+  if (!info?.file_path) throw new Error('Fayl topilmadi');
+  if (typeof info.file_size === 'number' && info.file_size > maxBytes) throw new Error('Fayl hajmi juda katta');
+  // A network hiccup is retried; the real cause is logged, the student sees a plain sentence.
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(`${API}/file/bot${botToken()}/${info.file_path}`, { signal: AbortSignal.timeout(20_000) });
+      if (!res.ok) throw new Error('Faylni yuklab bo‘lmadi');
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > maxBytes) throw new Error('Fayl hajmi juda katta');
+      return buf;
+    } catch (err) {
+      lastErr = err;
+      const message = err instanceof Error ? err.message : '';
+      // Only network-level failures are retried; a too-large file or a refused download is final.
+      if (/hajmi|yuklab bo‘lmadi/.test(message) || attempt === 3) break;
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+  }
+  const cause = (lastErr as { cause?: { message?: string } })?.cause?.message || (lastErr instanceof Error ? lastErr.message : '');
+  console.error('[telegram] file download failed:', cause);
+  throw new Error(lastErr instanceof Error && /hajmi|yuklab bo‘lmadi/.test(lastErr.message) ? lastErr.message : 'Telegram serveri bilan aloqa uzildi');
+}
+
+/** The amount typed in a message or caption, e.g. "100000" or "100 000 so‘m". */
+export function parseAmount(text: string): number | null {
+  const digits = text.replace(/[^\d]/g, '');
+  if (!digits || digits.length > 9) return null;
+  const n = Number(digits);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Whether a user is a member of the channel. The bot must be an administrator of the channel for this to work.
+ * 'unknown' means the check itself failed (the bot is not in the channel, the name is wrong, or Telegram is down).
+ */
+export async function channelMembership(channel: string, userId: number): Promise<'member' | 'none' | 'unknown'> {
+  const name = channel.replace(/^@/, '').trim();
+  if (!name || !userId) return 'unknown';
+  try {
+    const member = await telegramApi('getChatMember', { chat_id: `@${name}`, user_id: userId });
+    return ['member', 'administrator', 'creator'].includes(member?.status) ? 'member' : 'none';
+  } catch {
+    return 'unknown';
+  }
+}
