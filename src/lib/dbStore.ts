@@ -63,11 +63,40 @@ const MONEY_LOCK_KEY = 727001;
 
 type Handler<A extends unknown[]> = (req: NextRequest, ...args: A) => Promise<NextResponse>;
 
+// Keep spare pool connections for auth, Telegram and other nested database operations.
+// On the free instance a bounded busy response is safer than an unbounded connection queue.
+let activeSnapshots = 0;
+let activeWebhooks = 0;
+const MAX_SNAPSHOTS = 5;
+const MAX_WEBHOOKS = 2;
+const busy = () => NextResponse.json(
+  { success: false, code: 'SERVER_BUSY', message: 'Server band. Birozdan so‘ng qayta urinib ko‘ring.' },
+  { status: 503, headers: { 'Retry-After': '2' } }
+);
+
 export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<A> {
   return async (req, ...args) => {
-    const pool = getPool();
+    const webhook = req.nextUrl.pathname === '/api/telegram/webhook';
+    // Reject invalid webhook requests before bootstrap, snapshots and pool admission.
+    if (webhook) {
+      const secret = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
+      if (!secret || req.headers.get('x-telegram-bot-api-secret-token') !== secret) {
+        return NextResponse.json({ ok: false }, { status: 403 });
+      }
+    }
+    if (activeSnapshots >= MAX_SNAPSHOTS || (webhook && activeWebhooks >= MAX_WEBHOOKS)) return busy();
+    activeSnapshots++;
+    if (webhook) activeWebhooks++;
+    try { return await admitted(req, ...args); }
+    finally {
+      activeSnapshots--;
+      if (webhook) activeWebhooks--;
+    }
+  };
+  async function admitted(req: NextRequest, ...args: A): Promise<NextResponse> {
     let client;
     try {
+      const pool = getPool();
       await ensureBootstrap(pool);
       await ensureProviderUsagePersistence();
       client = await pool.connect();
@@ -154,5 +183,5 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
     } finally {
       client.release();
     }
-  };
+  }
 }
