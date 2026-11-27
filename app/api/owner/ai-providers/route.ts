@@ -3,7 +3,7 @@ import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
 import { geminiAllowed } from '@/src/lib/aiFreeOnly';
 import { providerConfigured, resolveCandidates, clearPaymentBlock, benchmarkProvider, FALLBACK_PROVIDERS, availableFallbacks, callFallbackProvider, modelCandidates, providerAvailable, providerPaymentBlocked, providerStatsSnapshot, type FallbackProviderId } from '@/src/lib/aiRouter';
-import { benchmarkGemini, executeUniversalAi, pickGeminiModelsFast, usableModels } from '@/src/lib/universalAi';
+import { benchmarkGemini, pickGeminiModelsFast, usableModels } from '@/src/lib/universalAi';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,8 +82,8 @@ async function handlePost(req: NextRequest) {
   const started = Date.now();
   try {
     if (provider === 'gemini') {
-      const text = await executeUniversalAi({ prompt: probe.prompt, temperature: 0, maxOutputTokens: 8 });
-      return NextResponse.json({ success: true, provider, ms: Date.now() - started, sample: String(text).slice(0, 40) });
+      const result = await benchmarkGemini();
+      return NextResponse.json({ success: result.ok, provider, model: result.model, ms: result.totalMs ?? Date.now() - started, message: result.message }, { status: result.ok ? 200 : 502 });
     }
     if (provider in FALLBACK_PROVIDERS) {
       const r = await callFallbackProvider(provider as FallbackProviderId, probe);
