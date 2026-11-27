@@ -287,6 +287,44 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
   const skew = useRef(0);
   const [fsRefused, setFsRefused] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const pendingAnswers = useRef<Record<string, number>>({});
+  const saveWorker = useRef<Promise<boolean> | null>(null);
+  const persistPending = useCallback(() => {
+    try { localStorage.setItem(`lvl-pending-${attemptId}`, JSON.stringify(pendingAnswers.current)); } catch { /* storage may be unavailable */ }
+  }, [attemptId]);
+  const flushAnswers = useCallback((): Promise<boolean> => {
+    if (saveWorker.current) return saveWorker.current;
+    const work = async (): Promise<boolean> => {
+      while (Object.keys(pendingAnswers.current).length) {
+        const [qid, choice] = Object.entries(pendingAnswers.current)[0];
+        setSaveWarn('Javoblar saqlanmoqda…');
+        try {
+          const res = await fetch(`/api/levels/attempts/${encodeURIComponent(attemptId)}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ questionId: qid, choice })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.success) throw new Error(data.message || 'Javob saqlanmadi');
+          if (pendingAnswers.current[qid] === choice) delete pendingAnswers.current[qid];
+          persistPending();
+        } catch {
+          setSaveWarn('Javob hali serverda saqlanmadi. Internetni tekshiring; qayta uriniladi.');
+          return false;
+        }
+      }
+      setSaveWarn('');
+      return true;
+    };
+    const promise = work().finally(() => { saveWorker.current = null; });
+    saveWorker.current = promise;
+    return promise;
+  }, [attemptId, persistPending]);
+  useEffect(() => {
+    if (status !== 'in_progress') return;
+    const retry = () => { if (Object.keys(pendingAnswers.current).length) void flushAnswers(); };
+    const timer = window.setInterval(retry, 3000);
+    window.addEventListener('online', retry);
+    return () => { window.clearInterval(timer); window.removeEventListener('online', retry); };
+  }, [status, flushAnswers]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/levels/attempts/${encodeURIComponent(attemptId)}`, { cache: 'no-store' });
@@ -299,7 +337,17 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
       return;
     }
     if (data.status === 'in_progress') {
-      setState(data as AttemptState);
+      try {
+        const saved = JSON.parse(localStorage.getItem(`lvl-pending-${attemptId}`) || '{}');
+        if (saved && typeof saved === 'object') {
+          for (const q of (data as AttemptState).questions) {
+            const choice = saved[q.id];
+            if (Number.isInteger(choice) && choice >= 0 && choice < q.options.length) pendingAnswers.current[q.id] = choice;
+          }
+        }
+      } catch { /* ignore invalid local data */ }
+      setState({ ...(data as AttemptState), answers: { ...data.answers, ...pendingAnswers.current } });
+      if (Object.keys(pendingAnswers.current).length) void flushAnswers();
       setStatus('in_progress');
     } else if (data.status === 'blocked') {
       setStatus('blocked');
@@ -307,10 +355,10 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
       setResult(data.result || null);
       setStatus('done');
     }
-  }, [attemptId]);
+  }, [attemptId, flushAnswers]);
 
   useEffect(() => {
-    void load();
+    void load().catch(() => { setErrMsg('Tarmoq xatosi. Testni qayta oching.'); setStatus('error'); });
   }, [load]);
 
   // Flags ("belgilash") are kept on this device only, per attempt.
@@ -367,6 +415,13 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
     setFinishBusy(true);
     setFinishErr('');
     try {
+      const saved = await flushAnswers();
+      if (!saved) {
+        const st = stateRef.current;
+        if (!st || Date.now() + skew.current < new Date(st.deadlineAt).getTime()) throw new Error('Saqlanmagan javoblar bor. Internetni tekshirib qayta urinib ko‘ring.');
+        // Deadline has passed. The server grades only acknowledged answers.
+        setSaveWarn('Vaqt tugadi. Faqat serverga saqlangan javoblar baholanadi.');
+      }
       const res = await fetch(`/api/levels/attempts/${encodeURIComponent(attemptId)}`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok && !data.result) throw new Error(data.message || 'Yuborib bo‘lmadi');
@@ -390,7 +445,7 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
       finishing.current = false;
       setFinishBusy(false);
     }
-  }, [attemptId, test.time_limit_seconds]);
+  }, [attemptId, test.time_limit_seconds, flushAnswers]);
 
   // Time is up: finish on the server (it closes the attempt and scores it).
   useEffect(() => {
@@ -437,16 +492,11 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
   }, [status, attemptId, requireFs, gate]);
 
   const choose = async (qid: string, choice: number) => {
-    if (!state) return;
-    setState({ ...state, answers: { ...state.answers, [qid]: choice } });
-    try {
-      await fetch(`/api/levels/attempts/${encodeURIComponent(attemptId)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ questionId: qid, choice })
-      });
-      setSaveWarn('');
-    } catch {
-      setSaveWarn('Javob saqlanmadi (tarmoq). Qayta tanlang.');
-    }
+    if (!state || finishing.current) return;
+    setState((s) => s ? { ...s, answers: { ...s.answers, [qid]: choice } } : s);
+    pendingAnswers.current[qid] = choice;
+    persistPending();
+    await flushAnswers();
   };
 
   // Keyboard: 1–9 / A–D choose, arrows move, F flags.

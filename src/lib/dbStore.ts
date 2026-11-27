@@ -84,7 +84,9 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
     // so a slow answer never holds a database transaction open.
     // The Telegram webhook reads far more than it writes, so it opens a transaction only when it writes.
     const isWebhook = req.nextUrl.pathname === '/api/telegram/webhook';
-    const isRead = req.method === 'GET' || req.method === 'HEAD' || req.nextUrl.pathname.startsWith('/api/ai/') || isWebhook;
+    // Level routes use the request transaction for atomic scoring and answer writes.
+    const isLevel = req.nextUrl.pathname.startsWith('/api/levels/');
+    const isRead = !isLevel && (req.method === 'GET' || req.method === 'HEAD' || req.nextUrl.pathname.startsWith('/api/ai/') || isWebhook);
     const started = Date.now();
     let inTx = false;
     const openTx = async () => {
@@ -105,6 +107,13 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
         // Requests that move money or VIP time run one after another: two concurrent purchases from one balance used to
         // both succeed (each read the same balance). The lock is released when this transaction ends.
         if (MONEY_PATH.test(req.nextUrl.pathname)) await client.query('select pg_advisory_xact_lock($1)', [MONEY_LOCK_KEY]);
+        // Serialize duplicate registration requests for the same normalized identifier before loading the snapshot.
+        if (req.nextUrl.pathname === '/api/auth/register') {
+          const body = await req.clone().json().catch(() => ({}));
+          const raw = String(body?.identifier || body?.phone || body?.email || '').trim().toLowerCase();
+          const identity = raw.includes('@') ? raw : (raw.replace(/\D/g, '') || raw) + '@edulevel.uz';
+          await client.query('select pg_advisory_xact_lock(727002, hashtext($1))', [identity]);
+        }
       }
       // Sign-in and sign-up create the session themselves, so they skip the lookup (one round trip less).
       const publicAuth = /^\/api\/auth\/(login|register|google)\/?$/.test(req.nextUrl.pathname);

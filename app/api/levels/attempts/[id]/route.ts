@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireAuth } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { verifyPassword } from '@/src/lib/auth/password';
 import { isExpired, registerViolation } from '@/src/lib/levelTests/logic';
 import { finalizeAttempt } from '@/src/lib/levelTests/finalize';
@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic';
 type Ctx = { params: Promise<{ id: string }> };
 
 async function ownAttempt(id: string, userId: string) {
-  const res = await getPool().query(
+  const res = await requireContext().client.query(
     `select a.*, t.title, t.time_limit_seconds, t.require_fullscreen, t.max_violations, t.certificate_enabled,
             t.grading_rules, t.kind
        from public.level_attempts a join public.level_tests t on t.id = a.test_id
-      where a.id = $1 and a.user_id = $2`,
+      where a.id = $1 and a.user_id = $2 for update of a`,
     [id, userId]
   );
   return res.rows[0] ?? null;
@@ -35,7 +35,7 @@ async function handleGet(req: NextRequest, ctx: Ctx) {
   if (a.status !== 'in_progress') {
     return NextResponse.json({ success: true, status: a.status, result: { percent: a.percent, level: a.level_label, certificateCode: a.certificate_code, score: a.score, maxScore: a.max_score } });
   }
-  const qs = await getPool().query('select id, prompt, options, points from public.level_questions where test_id = $1', [a.test_id]);
+  const qs = await requireContext().client.query('select id, prompt, options, points from public.level_questions where test_id = $1', [a.test_id]);
   const byId = new Map(qs.rows.map((q) => [q.id, q]));
   const order: string[] = Array.isArray(a.question_order) ? a.question_order : [];
   const questions = order.map((qid) => byId.get(qid)).filter(Boolean).map((q: any) => ({ id: q.id, prompt: q.prompt, options: q.options, points: q.points }));
@@ -66,15 +66,18 @@ async function handlePut(req: NextRequest, ctx: Ctx) {
   }
   const body = await req.json().catch(() => ({})) as { questionId?: unknown; choice?: unknown };
   const qid = typeof body.questionId === 'string' ? body.questionId : '';
-  const choice = Number(body.choice);
+  const choice = typeof body.choice === 'number' ? body.choice : NaN;
   const allowed = Array.isArray(a.question_order) && a.question_order.includes(qid);
   if (!allowed || !Number.isInteger(choice) || choice < 0 || choice > 7) {
     return NextResponse.json({ success: false, message: 'Javob noto‘g‘ri.' }, { status: 400 });
   }
-  await getPool().query(
-    `update public.level_attempts set answers = answers || jsonb_build_object($2::text, $3::int) where id = $1 and status = 'in_progress'`,
+  const saved = await requireContext().client.query(
+    `update public.level_attempts a set answers = a.answers || jsonb_build_object($2::text, $3::int)
+      where a.id = $1 and a.status = 'in_progress' and a.deadline_at > clock_timestamp()
+      and exists (select 1 from public.level_questions q where q.id = $2 and q.test_id = a.test_id and $3::int < jsonb_array_length(q.options))`,
     [id, qid, choice]
   );
+  if (!saved.rowCount) return NextResponse.json({ success: false, message: 'Javob saqlanmadi: vaqt yoki variantni tekshiring.' }, { status: 409 });
   return NextResponse.json({ success: true });
 }
 
@@ -85,6 +88,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const a = await ownAttempt(id, auth.userId);
   if (!a) return NextResponse.json({ success: false, message: 'Urinish topilmadi.' }, { status: 404 });
+  if (a.status === 'finished' || a.status === 'expired') return NextResponse.json({ success: true, status: a.status, result: { percent: a.percent, level: a.level_label, certificateCode: a.certificate_code, score: a.score, maxScore: a.max_score } });
   if (a.status !== 'in_progress') return NextResponse.json({ success: false, message: 'Urinish allaqachon yopilgan.' }, { status: 409 });
   const r = await finalizeAttempt(a, isExpired(new Date(a.deadline_at), new Date()) ? 'expired' : 'finished');
   return NextResponse.json({ success: true, result: r });
@@ -102,7 +106,7 @@ async function handlePatch(req: NextRequest, ctx: Ctx) {
   if (!a) return NextResponse.json({ success: false, message: 'Urinish topilmadi.' }, { status: 404 });
   if (a.status !== 'in_progress') return NextResponse.json({ success: true, status: a.status });
   const next = registerViolation(a.violations ?? 0, a.max_violations);
-  await getPool().query(
+  await requireContext().client.query(
     `update public.level_attempts set violations = $2,
             status = case when $3::boolean then 'blocked' else status end,
             blocked_at = case when $3::boolean then now() else blocked_at end

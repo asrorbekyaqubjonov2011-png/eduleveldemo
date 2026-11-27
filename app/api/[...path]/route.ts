@@ -662,7 +662,8 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     }
     const { name, surname, identifier, phone, email, password, region, track, targetScore, studyTimeDaily } = body;
     const rawIdentifier = (identifier || phone || email || '').toString().trim();
-    const regLimit = rateLimit(`register:${clientIp(req)}`, 25, 60 * 60 * 1000);
+    // Shared school networks need room for a whole class; retain per-identity and network abuse limits.
+    const regLimit = rateLimit(`register:${clientIp(req)}`, 120, 10 * 60 * 1000);
     if (!regLimit.allowed) return tooMany(regLimit.retryAfterSec);
 
     if (!name || !name.toString().trim()) {
@@ -680,6 +681,8 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     const cleanDigits = cleanInput.replace(/\D/g, '');
     const authEmail = cleanInput.includes('@') ? cleanInput : `${cleanDigits || cleanInput}@edulevel.uz`;
 
+    const identityLimit = rateLimit(`register-id:${authEmail}`, 5, 15 * 60 * 1000);
+    if (!identityLimit.allowed) return tooMany(identityLimit.retryAfterSec);
     const existing = db.users.find((u) => {
       const uEmail = (u.email || '').toLowerCase();
       const uPhone = (u.phone || '').replace(/\D/g, '');
@@ -697,7 +700,7 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     }
 
     const newUser: User = {
-      id: 'user-' + Date.now(),
+      id: 'user-' + crypto.randomUUID(),
       name: name.toString().trim(),
       surname: (surname || '').toString().trim(),
       phone: rawIdentifier.includes('@') ? '' : rawIdentifier,

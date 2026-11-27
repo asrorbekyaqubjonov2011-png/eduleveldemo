@@ -1,9 +1,9 @@
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
 import { levelForPercent, scoreAnswers, GradingRule } from './logic';
 
 /** Finalises an attempt: scores the answers, applies the owner's grading rules, and issues a certificate when earned. */
 export async function finalizeAttempt(attempt: any, status: 'finished' | 'expired') {
-  const pool = getPool();
+  const pool = requireContext().client;
   const qs = await pool.query('select id, correct_index, points from public.level_questions where test_id = $1', [attempt.test_id]);
   const { score, maxScore, percent } = scoreAnswers(qs.rows, attempt.answers ?? {});
   const rules = Array.isArray(attempt.grading_rules) ? (attempt.grading_rules as GradingRule[]) : [];

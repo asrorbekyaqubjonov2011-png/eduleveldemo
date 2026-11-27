@@ -28,6 +28,7 @@ export function getPool(): Pool {
     connectionString: url,
     max: 8,
     idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
     ssl: local ? false : ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: false }
   });
   pool.on('error', (err) => console.error('[db] idle client error:', err.message));

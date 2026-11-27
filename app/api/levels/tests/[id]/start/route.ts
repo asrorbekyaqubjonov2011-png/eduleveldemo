@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDatabase } from '@/src/lib/dbStore';
 import { requireAuth } from '@/src/lib/auth/guards';
-import { getPool } from '@/src/lib/db/pool';
+import { requireContext } from '@/src/lib/db/context';
+import { finalizeAttempt } from '@/src/lib/levelTests/finalize';
 import { verifyPassword } from '@/src/lib/auth/password';
 import { attemptDeadline, canStartAttempt, isExpired } from '@/src/lib/levelTests/logic';
 
@@ -28,7 +29,8 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ success: false, message: 'Ism, familiya va sinfni kiriting.' }, { status: 400 });
   }
 
-  const pool = getPool();
+  const pool = requireContext().client;
+  await pool.query('select pg_advisory_xact_lock(727003, hashtext($1))', [id + ':' + auth.userId]);
   const testRes = await pool.query(
     `select * from public.level_tests t where t.id = $1 and t.status = 'published'
        and (t.starts_at is null or t.starts_at <= now()) and (t.ends_at is null or t.ends_at > now())`,
@@ -58,7 +60,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
     if (!isExpired(new Date(current.deadline_at), new Date())) {
       return NextResponse.json({ success: true, attemptId: current.id, resumed: true, deadlineAt: current.deadline_at });
     }
-    await pool.query(`update public.level_attempts set status = 'expired', finished_at = now() where id = $1`, [current.id]);
+    await finalizeAttempt({ ...current, grading_rules: test.grading_rules, certificate_enabled: test.certificate_enabled }, 'expired');
   }
 
   const made = await pool.query(
