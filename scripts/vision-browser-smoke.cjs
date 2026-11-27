@@ -19,7 +19,7 @@ async function inspect(page, route, width, screenshot) {
     overflow: document.documentElement.scrollWidth - innerWidth,
     heading: document.querySelector('h1')?.textContent?.trim(),
     images: [...document.querySelectorAll('img')].filter(i=>i.complete && i.naturalWidth===0 && i.getBoundingClientRect().width>0).map(i=>i.getAttribute('src')).slice(0,10),
-    lcp: performance.getEntriesByType('largest-contentful-paint').at(-1)?.startTime ?? null
+    lcp: window.__visionLcp ?? null
   }));
   check(width+' '+route+' reachable',res?.status()===200 && Boolean(layout.heading),{status:res?.status()});
   check(width+' '+route+' layout', layout.overflow<=1 && layout.images.length===0,layout);
@@ -53,7 +53,7 @@ async function inspect(page, route, width, screenshot) {
     const register=await student.request.post(new URL('/api/auth/register',base).href,{data:{name:'Vision',surname:'Fixture',identifier:email,email,password:'FixturePass-2026!',region:'Toshkent'}});
     check('student registration',register.status()===200);
     const me=await student.request.get(new URL('/api/auth/me',base).href);
-    check('student session',me.status()===200);
+    check('student session',me.status()===200 && (await me.json()).authenticated===true);
     const ownerDenied=await student.request.get(new URL('/api/owner/ai-providers',base).href);
     check('student cannot open owner API',[401,403].includes(ownerDenied.status()));
     const ai=await student.request.post(new URL('/api/ai-stream',base).href,{data:{userMessage:'What is the past tense of go?'}});
