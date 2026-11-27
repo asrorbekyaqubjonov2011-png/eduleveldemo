@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const base = new URL(process.env.BASE || 'http://127.0.0.1:3100');
-if (!['127.0.0.1','localhost'].includes(base.hostname) || base.protocol !== 'http:') throw Error('Local fixture only');
+if (!['127.0.0.1','localhost'].includes(base.hostname) || !['http:','https:'].includes(base.protocol)) throw Error('Local fixture only');
 const output = process.env.VISION_SHOTS || 'vision-smoke-results';
 const errors = [];
 const results = [];
@@ -30,7 +30,7 @@ async function inspect(page, route, width, screenshot) {
   const browser=await chromium.launch();
   try {
     for(const width of [320,390,768,1440]) {
-      const ctx=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce',isMobile:width<600,hasTouch:width<600});
+      const ctx=await browser.newContext({ignoreHTTPSErrors:base.protocol==='https:',viewport:{width,height:900},reducedMotion:'reduce',isMobile:width<600,hasTouch:width<600});
       const page=await ctx.newPage();
       page.on('pageerror',e=>errors.push('Page '+width+': '+e.message));
       await page.addInitScript(()=>{try{new PerformanceObserver(list=>{window.__visionLcp=list.getEntries().at(-1)?.startTime;}).observe({type:'largest-contentful-paint',buffered:true});}catch{}});
@@ -45,13 +45,13 @@ async function inspect(page, route, width, screenshot) {
       await page.screenshot({path:path.join(output,'dock-'+width+'.png')});
       await ctx.close();
     }
-    const anon=await browser.newContext();
+    const anon=await browser.newContext({ignoreHTTPSErrors:base.protocol==='https:'});
     check('anonymous owner API refused',(await anon.request.get(new URL('/api/owner/ai-providers',base).href)).status()===401);
     check('AI stream rejects oversized payload', (await anon.request.post(new URL('/api/ai-stream',base).href,{data:{userMessage:'x'.repeat(97000)}})).status()===413);
     check('AI stream rejects invalid JSON shape', (await anon.request.post(new URL('/api/ai-stream',base).href,{data:'null',headers:{'Content-Type':'application/json'}})).status()===400);
     check('anonymous AI stream refused', (await anon.request.post(new URL('/api/ai-stream',base).href,{data:{userMessage:'Hello'}})).status()===401);
     await anon.close();
-    const student=await browser.newContext({viewport:{width:1280,height:900}});
+    const student=await browser.newContext({ignoreHTTPSErrors:base.protocol==='https:',viewport:{width:1280,height:900}});
     const email='vision-smoke-'+Date.now()+'@test.local';
     const register=await student.request.post(new URL('/api/auth/register',base).href,{data:{name:'Vision',surname:'Fixture',identifier:email,email,password:'FixturePass-2026!',region:'Toshkent'}});
     check('student registration',register.status()===200);
@@ -62,7 +62,7 @@ async function inspect(page, route, width, screenshot) {
     const ai=await student.request.post(new URL('/api/ai-stream',base).href,{data:{userMessage:'What is the past tense of go?'}});
     check('no AI keys: explicit unavailable response',ai.status()===503);
     await student.close();
-    const owner=await browser.newContext();
+    const owner=await browser.newContext({ignoreHTTPSErrors:base.protocol==='https:'});
     const login=await owner.request.post(new URL('/api/auth/login',base).href,{data:{loginInput:'visionfixture',password:'VisionFixture-2026!'}});
     check('owner fixture login',login.status()===200 && (await login.json()).role==='owner');
     check('owner provider manager endpoint',(await owner.request.get(new URL('/api/owner/ai-providers',base).href)).status()===200);
