@@ -1,0 +1,6 @@
+{
+  "name": "Edu Level — IELTS, CEFR & General English Platform",
+  "description": "Ultra-premium 3-in-1 English learning ecosystem for IELTS Academic/GT, CEFR Multilevel, and General English with 4-skill mock tests, AI tutor, voice conversations, spaced repetition flashcards, and digital library.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,62 @@
+# Render Blueprint for the EduLevel production web service.
+# Live service: "Edu-Level" (srv-dc0qserm8hqs73fc4bt0), https://edu-level.onrender.com, branch ccr-9d9be064-f56xo5.
+# Secrets are never committed: every variable with `sync: false` is entered in the Render dashboard.
+# Release checklist, smoke tests and the live state: docs/DEPLOY.md.
+services:
+  - type: web
+    name: Edu-Level
+    runtime: node
+    repo: https://github.com/asrorbekyaqubjonov11-cmyk/EduLevel
+    branch: ccr-9d9be064-f56xo5
+    region: singapore
+    # The live instance is still on the free plan (see docs/DEPLOY.md); starter is the intended plan.
+    plan: starter
+    buildCommand: bun install && bun run build
+    startCommand: bun run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OWNER_USERNAME
+        value: jasurbek
+      # Owner password: set in the Render dashboard only. Never commit it.
+      - key: OWNER_PASSWORD
+        sync: false
+      # Postgres connection string of the EduLevel Supabase project (pooler, port 6543).
+      - key: DATABASE_URL
+        sync: false
+      # Gemini API key for all AI features (server-side only). Must be a billed key: the free tier runs out.
+      - key: GEMINI_API_KEY
+        sync: false
+      # Image storage (Supabase Storage). Server-side only.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Telegram deposit and channel bot (server-side only). TELEGRAM_API_BASE must NOT be set in production.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      # Secret header for the outside scheduler that calls POST /api/telegram/cron.
+      - key: TELEGRAM_CRON_SECRET
+        sync: false
+      # Public address used in canonical links, sitemap and bot links. Render also sets RENDER_EXTERNAL_URL.
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://edu-level.onrender.com
+      # Firebase web config (Google sign-in). Public values, but they are inlined at build time: set before building.
+      - key: NEXT_PUBLIC_FIREBASE_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_APP_ID
+        sync: false
+      # Optional: OpenRouter key for the Jev answer checker. Without it that check is skipped.
+      - key: OPENROUTER_API_KEY
+        sync: false
