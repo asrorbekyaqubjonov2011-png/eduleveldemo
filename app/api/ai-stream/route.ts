@@ -114,37 +114,48 @@ export async function POST(req: NextRequest) {
 
     const enc = new TextEncoder();
     const calls: AiCallRecord[] = [];
+    const inner = new AbortController();
+    const cancel = () => inner.abort();
+    req.signal.addEventListener('abort', cancel, { once: true });
+    if (req.signal.aborted) cancel();
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        // A first invisible byte opens the connection at once, so no proxy waits for the model before it lets the page listen.
-        controller.enqueue(enc.encode('​'));
-        // One deadline for the whole answer: if no word was written in 45 s the request is cancelled and the student is told,
-        // instead of waiting for a proxy to drop the connection. The student's own stop/leave also cancels it.
-        const inner = new AbortController();
-        req.signal.addEventListener('abort', () => inner.abort(), { once: true });
+        let closed = false;
+        const send = (text: string) => {
+          if (closed || inner.signal.aborted) return;
+          try { controller.enqueue(enc.encode(text)); }
+          catch { closed = true; cancel(); }
+        };
+        send('\u200b');
         let emitted = false;
-        let timedOut = false;
-        const deadline = setTimeout(() => { if (!emitted) { timedOut = true; inner.abort(); } }, 45_000);
+        // The gateway enforces the shorter task deadline. This is the hard transport ceiling.
+        const timer = setTimeout(() => {
+          send('\u0001EduBek javob vaqti tugadi. Qayta urinib ko‘ring.');
+          cancel();
+          if (!closed) { closed = true; try { controller.close(); } catch { /* disconnected */ } }
+        }, 45_000);
         void aiCallStore.run({ calls }, async () => {
           try {
-            const full = await streamTutorAnswer(params, (piece) => { if (piece) { emitted = true; controller.enqueue(enc.encode(piece)); } }, inner.signal);
-            if (!emitted && !req.signal.aborted) {
-              controller.enqueue(enc.encode('\u0001' + (timedOut ? 'Edubek hozir band. Birozdan so‘ng qayta urinib ko‘ring.' : full ? '' : 'Edubek bo‘sh javob qaytardi. Qayta urinib ko‘ring.')));
+            await streamTutorAnswer(params, piece => {
+              if (piece) { emitted = true; send(piece); }
+            }, inner.signal);
+            if (!emitted && !inner.signal.aborted) send('\u0001EduBek bo‘sh javob qaytardi. Qayta urinib ko‘ring.');
+          } catch (e) {
+            if (!inner.signal.aborted) {
+              console.error('[ai-stream]', e instanceof Error ? e.name : 'UnknownError');
+              send('\u0001' + (emitted
+                ? 'Javob uzilib qoldi. Qayta urinib ko‘ring.'
+                : 'AI xizmati hozir javob bermadi. Birozdan so‘ng qayta urinib ko‘ring.'));
             }
-          } catch (e: any) {
-            console.error('[ai-stream]', e?.detail || e?.message);
-            controller.enqueue(enc.encode('\u0001' + (e?.message || 'AI xizmati javob bermadi. Birozdan so‘ng qayta urinib ko‘ring.')));
           } finally {
-            clearTimeout(deadline);
-            try {
-              controller.close();
-            } catch {
-              /* the page already left */
-            }
-            void recordAiStats(calls, { op: 'chat-tutor', userId: who });
+            clearTimeout(timer);
+            req.signal.removeEventListener('abort', cancel);
+            if (!closed) { closed = true; try { controller.close(); } catch { /* disconnected */ } }
+            void recordAiStats(calls, { op: 'chat-tutor', userId: who }).catch(() => {});
           }
         });
-      }
+      },
+      cancel() { cancel(); req.signal.removeEventListener('abort', cancel); }
     });
     return new NextResponse(stream, {
       headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Content-Encoding': 'identity' }
