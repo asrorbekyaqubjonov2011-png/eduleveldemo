@@ -1,9 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
-import { raceFirst } from './raceFirst';
 import { noteAiCall, type AiCallRecord } from './aiStats';
 import { scenarioById } from './edubekScenarios';
 import { runFallbackChain } from './aiRouter';
-import { defaultTimeoutMs, fallbackIds, resolveRoute, routeConfig, type AiTaskId } from './aiRouting';
+import { defaultTimeoutMs, fallbackIds, resolveRoute, routeConfig, type AiTaskId, type RoutingConfig } from './aiRouting';
 import { CostBlockedError, geminiAllowed } from './aiFreeOnly';
 
 /** Cost gate for every Gemini generation request: refused unless the owner confirmed the free tier. */
@@ -671,6 +670,7 @@ function lessonBlock(lesson: LessonMaterial): string {
 
 export interface TutorParams {
   userMessage: string;
+  routing?: RoutingConfig;
   lesson?: LessonMaterial;
   /** Recent turns of this conversation, oldest first. Lets Edubek keep talking in context. */
   history?: TutorTurn[];
@@ -932,10 +932,10 @@ export async function streamTutorAnswer(params: TutorParams, onText: (piece: str
   const task = params.talk ? 'voice' : 'edubek_chat';
   // Use only the server's configured account. An unrelated user-supplied key is not proof of a free tier.
   const key = (process.env.GEMINI_API_KEY || '').trim();
-  const timeoutMs = routeConfig(task).timeoutMs ?? defaultTimeoutMs(task);
+  const timeoutMs = routeConfig(task, params.routing).timeoutMs ?? defaultTimeoutMs(task);
   const deadline = AbortSignal.timeout(timeoutMs);
   const signal = outer ? AbortSignal.any([outer, deadline]) : deadline;
-  const route = resolveRoute(task, { hasGeminiKey: Boolean(key) });
+  const route = resolveRoute(task, { hasGeminiKey: Boolean(key) && geminiAllowed(), cfg: params.routing });
   let lastError: unknown = new Error('Bepul AI modeli mavjud emas');
   let emitted = false;
   const emit = (piece: string) => {
