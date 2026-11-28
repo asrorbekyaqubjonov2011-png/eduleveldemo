@@ -45,6 +45,7 @@ async function voice(browser) {
         }
         return Promise.resolve(new Response(new ReadableStream({
           start(controller) {
+            window.fixtureStreamStarted = true;
             controller.enqueue(new TextEncoder().encode('This is a fixture answer. '.repeat(4)));
             options.signal.addEventListener('abort', () => {
               window.fixtureVoiceAborted = true;
@@ -88,6 +89,18 @@ async function voice(browser) {
     await dialog.waitFor();
     assert.equal(await avatar.getAttribute('data-audio-playing'), 'false');
     await dialog.getByRole('button', { name: 'Suhbatni yopish' }).click();
+    await page.evaluate(() => {
+      window.fixtureChatResponse = false;
+      window.fixtureVoiceAborted = false;
+      window.fixtureStreamStarted = false;
+    });
+    await page.getByPlaceholder(/Savol yoki matnni yozing/).fill('A reply to cancel on navigation');
+    await page.getByRole('button', { name: 'Yuborish', exact: true }).click();
+    await page.waitForFunction(() => window.fixtureStreamStarted === true);
+    await page.locator('main > div.lg\\:hidden > button').click();
+    await page.getByRole('button', { name: 'Boshqaruv paneli', exact: true }).click();
+    await page.waitForFunction(() => window.fixtureVoiceAborted === true);
+    console.log('PASS leaving EduBek chat cancels a pending AI request');
     console.log('PASS manual chat playback without automatic voice and cancellation on conversation open');
     console.log('PASS mock STT/AI/TTS: idle, active playback, abort, motion cleanup');
   } finally { await context.close(); }

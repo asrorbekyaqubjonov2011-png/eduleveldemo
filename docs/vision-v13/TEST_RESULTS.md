@@ -30,3 +30,9 @@ Locked install, TypeScript, 204 unit test va Next production build o‘tdi. ESLi
 - Mobil va desktopda reduced-motion parametrini sahifani qayta yuklamasdan almashtirish counter animatsiyasini to‘xtatdi va qiymatni ko‘rsatdi. TypeScript, 204 unit test va build o‘tdi. ESLint 85 ogohlantirish va 0 xato qaytardi.
 
 [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46137497928) · [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46137497905)
+
+- `3c4bf53` commitida ikkala GitHub Actions workflow o‘tdi. Lokal yangi brauzer sinovida chatdan chiqish davom etayotgan AI so‘rovini bekor qildi.
+- Firebase server token tekshiruvi uchun Bitta unit test qo‘shildi va suite jami 205 ta testdan iborat bo‘ldi. Sintetik imzolovchi bilan parallel Google login Firebase X.509 sertifikatlari uchun bitta fetch ishlatishi, keyingi tekshiruv keshni ishlatishi va noto‘g‘ri loyiha auditi tarmoq chaqiruvisiz qaytishi tekshirildi. Public Google sertifikat endpointi HTTP 200 qaytardi. Jonli Google user login ochiq.
+- 100 public sahifa hamda 27 Owner va 13 Student tab 3 o‘lchamda ochildi. 420 ta full-page tasvir va alohida interaktiv holatlar mavjud.
+
+[Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46138393778) · [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46138393792)
