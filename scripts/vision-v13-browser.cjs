@@ -1,6 +1,6 @@
 // Runs against the same isolated HTTPS fixture as vision-browser-smoke.cjs.
 const assert = require('node:assert/strict');
-const { createHmac } = require('node:crypto');
+const { createHmac, randomUUID } = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -187,6 +187,12 @@ async function navigation(browser) {
       assert.equal(await faqPage.getByRole('button', { name: 'Savollar', exact: true }).count(), 0);
     } finally { await faqPage.close(); }
 
+    const email = 'finance-' + randomUUID() + '@test.local';
+    const signup = await context.request.post(new URL('/api/auth/register', base).href, {
+      data: { name: 'Finance', surname: 'Fixture', email, identifier: email, password: 'FinanceFixture-123!' },
+    });
+    assert.equal(signup.status(), 200);
+    const { user: financeUser } = await (await context.request.get(new URL('/api/auth/me', base).href)).json();
     const login = await context.request.post(new URL('/api/auth/login', base).href, {
       data: { loginInput: process.env.OWNER_USERNAME, password: process.env.OWNER_PASSWORD },
     });
@@ -221,6 +227,33 @@ async function navigation(browser) {
     await shot(ownerPage, 'v13-placement-export-390');
     await ownerPage.setViewportSize({ width: 1440, height: 900 });
     console.log('PASS Owner Placement export defaults to all, downloads summary, and fits mobile');
+    await ownerPage.emulateMedia({ reducedMotion: 'reduce' });
+    await filter.fill('Depozitlar');
+    await ownerPage.getByRole('button', { name: 'Depozitlar & moliya', exact: true }).click();
+    await ownerPage.getByRole('button', { name: 'Balansni Qo‘lda O‘zgartirish', exact: true }).click();
+    const account = ownerPage.getByLabel('O‘quvchini tanlang');
+    await account.selectOption(financeUser.id);
+    await ownerPage.getByLabel('Summa (so‘m)', { exact: true }).fill('2000');
+    await ownerPage.getByLabel('Izoh / Sabab', { exact: true }).fill('Finance fixture');
+    const balanceUrl = new URL('/api/owner/students/update', base).href;
+    await ownerPage.route(balanceUrl, async route => {
+      const result = await context.request.post(balanceUrl, { data: { id: financeUser.id, balance: 3000 } });
+      assert.equal(result.status(), 200);
+      await route.continue();
+    }, { times: 1 });
+    const updateBalance = ownerPage.getByRole('button', { name: 'Balansni Yangilash', exact: true });
+    await updateBalance.click();
+    await ownerPage.getByRole('alert').filter({ hasText: 'Balans o‘zgargan' }).waitFor();
+    await ownerPage.getByRole('alert').filter({ hasText: 'Balans o‘zgargan' }).scrollIntoViewIfNeeded();
+    await shot(ownerPage, 'v13-finance-stale-balance-1440');
+    await ownerPage.setViewportSize({ width: 390, height: 844 });
+    await updateBalance.click();
+    const confirmation = ownerPage.getByRole('status').filter({ hasText: /Finance balansida 5[^0-9]?000 so‘m bor/ });
+    await confirmation.waitFor();
+    await confirmation.scrollIntoViewIfNeeded();
+    await shot(ownerPage, 'v13-finance-adjusted-balance-390');
+    await ownerPage.setViewportSize({ width: 1440, height: 900 });
+    console.log('PASS Owner stale balance is reported, refreshed, and retried successfully from mobile');
     const logOut = ownerPage.locator('aside').getByRole('button', { name: 'Chiqish', exact: true });
     const response = ownerPage.waitForResponse((r) => r.url().endsWith('/api/auth/logout'));
     await logOut.click();

@@ -21,3 +21,5 @@ Yuqori ogohlantirishlar PostCSS va Firestore gRPC yo‘llaridan kelgan. Next dek
 O‘qish bosqichlarida kutilgan 24 ta Mini App 401 javobi bor. Har bir yugurishdan keyin sog‘liq tekshiruvi 200. Ro‘yxatdan o‘tish bilan aralash bosqichda query p95 65 ms, persist p95 97 ms. Qisqa sinovlar RSS yuqori chegarasini yoki production trafik sig‘imini aniqlamaydi. Pool acquire p95 sovuq ulanishda 107 ms gacha va iliq 24 mijozli bosqichlarda 1 ms bo‘ldi. Alohida uzun yuklama va Render monitoringi ochiq.
 
 Uzunroq mahalliy ramp jami 2240 so‘rov yubordi. 24 parallel mijoz bosqichida 1344 so‘rov, 0 ta 503, p95 183 ms, navbat p95 67 ms, pool p95 1 ms va sog‘liq holati 200. Butun rampda Next RSS cho‘qqisi 387 640 KiB. [Davomli sinov](evidence/sustained.json)
+
+Owner va moliya regressiyasidan keyingi lokal rampda 2240 so‘rovning hech biri 503 qaytarmadi. 24 mijoz bosqichida p95 208 ms, navbat p95 67 ms, pool p95 1 ms va Next CPU 6670 ms. 320 ta kutilgan Mini App 401 qaytdi, yakuniy health 200. O‘lchangan RSS cho‘qqisi 532 240 KiB bo‘ldi. Bu 512 MiB dan yuqori, shuning uchun bepul Render xotira chegarasi bo‘yicha alohida profil kerak. [O‘lchov](evidence/finance-load.json)

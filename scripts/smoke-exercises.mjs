@@ -18,7 +18,7 @@ async function call(method, path, body, cookie) {
   return { status: res.status, json: await res.json().catch(() => ({})), cookie: set.match(/el_session=([^;]+)/)?.[1] };
 }
 
-const owner = await call('POST', 'auth/login', { loginInput: 'jasurbek', password: OWNER_PASSWORD });
+const owner = await call('POST', 'auth/login', { loginInput: process.env.OWNER_USERNAME || 'jasurbek', password: OWNER_PASSWORD });
 check('owner logs in', owner.status === 200 && !!owner.cookie);
 const oc = owner.cookie;
 

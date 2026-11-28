@@ -14,7 +14,7 @@ async function call(method, path, body, cookie) {
 }
 const phone = () => '+99895' + String(Date.now()).slice(-7) + Math.floor(Math.random() * 9);
 
-const owner = await call('POST', 'auth/login', { loginInput: 'jasurbek', password: OWNER_PASSWORD });
+const owner = await call('POST', 'auth/login', { loginInput: process.env.OWNER_USERNAME || 'jasurbek', password: OWNER_PASSWORD });
 const oc = owner.cookie;
 check('owner logs in', owner.status === 200 && !!oc);
 const plans = (await call('GET', 'db/all', null, oc)).json.data.vipPlans;

@@ -63,3 +63,8 @@ Oxirgi muddati tugagan urinish ochilganda baho tranzaksiyada saqlanadi. Keyingi 
 - 210 unit, 11 ta education/API ssenariysi, 20 Telegram simulyatsion tekshiruvi, TypeScript va Next.js build o‘tdi. ESLint 0 xato va 85 ogohlantirish.
 - Izolyatsiyalangan Postgresda to‘rtta parallel VIP xarididan bittasi balansni yechdi va ledgerga yozildi. Bir xil chek URLi uchun bitta so‘rov qabul qilindi. Owner huquqi va qayta tasdiqlash tekshirildi.
 - Sayt va Telegramdan bir vaqtda yuborilgan bir depozit tasdig‘i bitta balans va XP kreditini berdi. Ikkita alohida depozit parallel tasdiqlanganda ikkala kredit ham saqlandi. Telegram chaqiruvlari fake transportda bajarildi.
+
+`dcd6fce` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46159561864) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46159561880) o‘tdi.
+
+- Owner paneldagi bir vaqtdagi manual balans so‘rovlaridan faqat bittasi yozildi. Chromiumda haqiqiy fixture API desktopda 409 qaytardi, panel yangi balansni oldi va mobil o‘lchamda qayta yuborilgan amal muvaffaqiyatli o‘tdi. Desktop ogohlantirish va mobil tasdiq PNG dalillari integration artifact tarkibida.
+- 210 unit, 12 ta education/API ssenariysi, 19 Owner Forms, 12 DB, 20 mashqlar, 15 darslar, 24 yangilik/VIP gift va 15 promo tekshiruvi lokal o‘tdi. ESLint 0 xato va 84 ogohlantirish. TypeScript va production build o‘tdi.

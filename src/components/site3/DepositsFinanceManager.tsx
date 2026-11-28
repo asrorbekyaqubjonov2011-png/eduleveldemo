@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { downloadCsv } from '../../lib/csvDownload';
 import { api } from '../../services/api';
 import { TelegramSetup } from './TelegramSetup';
@@ -26,23 +26,40 @@ import { field, label, cn } from '../ui/styles';
 
 /** botOnly: the same screen, showing only the Telegram bot settings (used by the owner's own Telegram bot section). */
 export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnly = false }) => {
-  const { db, approveDeposit, rejectDeposit, updateBotSettings, updateStudentFull, refreshDb } = useApp();
+  const { db, approveDeposit, rejectDeposit, updateBotSettings, refreshDb } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<'transactions' | 'bot_settings' | 'manual_adjust'>(botOnly ? 'bot_settings' : 'transactions');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'rejected'>('all');
   const [successMsg, setSuccessMsg] = useState('');
+  const [financeError, setFinanceError] = useState('');
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const [adjusting, setAdjusting] = useState(false);
   const [botError, setBotError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
-  // Auto-poll every 3.5s so new deposit requests arrive in real time
+  const refreshVisibleDeposits = useRef(refreshDb);
+  React.useEffect(() => { refreshVisibleDeposits.current = refreshDb; }, [refreshDb]);
+  // Keep the finance view current without overlapping polls or refreshing a hidden tab.
   React.useEffect(() => {
-    refreshDb();
-    const interval = setInterval(() => {
-      refreshDb();
-    }, 3500);
-    return () => clearInterval(interval);
+    let polling = false;
+    const poll = async () => {
+      if (document.hidden || polling) return;
+      polling = true;
+      try {
+        await refreshVisibleDeposits.current();
+      } finally {
+        polling = false;
+      }
+    };
+    void poll();
+    const interval = setInterval(poll, 3500);
+    document.addEventListener('visibilitychange', poll);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', poll);
+    };
   }, []);
 
   const handleManualRefresh = async () => {
@@ -105,20 +122,22 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
     .filter(u => u.role === 'student')
     .reduce((acc, u) => acc + (u.balance || 0), 0);
 
-  const handleApprove = async (id: string) => {
-    setSuccessMsg('Depozit tasdiqlanmoqda...');
-    await approveDeposit(id);
-    await refreshDb();
-    setSuccessMsg('✅ Depozit muvaffaqiyatli tasdiqlandi va o‘quvchi hisobiga qo‘shildi!');
-    setTimeout(() => setSuccessMsg(''), 3500);
-  };
-
-  const handleReject = async (id: string) => {
-    if (confirm('Rostdan ham ushbu depozit so‘rovini rad etmoqchimisiz?')) {
-      await rejectDeposit(id);
-      await refreshDb();
-      setSuccessMsg('Depozit rad etildi.');
-      setTimeout(() => setSuccessMsg(''), 3000);
+  const handleReview = async (id: string, action: 'approve' | 'reject') => {
+    if (reviewing || (action === 'reject' && !confirm('Rostdan ham ushbu depozit so‘rovini rad etmoqchimisiz?'))) return;
+    setReviewing(id);
+    setSuccessMsg('');
+    setFinanceError('');
+    try {
+      const result = await (action === 'approve' ? approveDeposit(id) : rejectDeposit(id));
+      if (result?.success !== true) {
+        setFinanceError(result?.message || 'Depozitni ko‘rib chiqib bo‘lmadi.');
+        return;
+      }
+      setSuccessMsg(action === 'approve' ? 'Depozit tasdiqlandi va o‘quvchi balansiga qo‘shildi.' : 'Depozit rad etildi.');
+    } catch {
+      setFinanceError('Aloqa uzildi. Qayta yuborishdan oldin depozit holatini tekshiring.');
+    } finally {
+      setReviewing(null);
     }
   };
 
@@ -137,18 +156,32 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
   const handleManualAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     const student = db.users.find(u => u.id === selectedStudentId);
-    if (!student) return;
+    if (!student || adjusting) return;
+    setSuccessMsg('');
+    setFinanceError('');
+    if (!Number.isSafeInteger(adjustAmount) || adjustAmount <= 0) {
+      setFinanceError('Musbat butun summa kiriting.');
+      return;
+    }
 
     const currentBal = student.balance || 0;
     const finalAmount = adjustType === 'add' ? currentBal + adjustAmount : Math.max(0, currentBal - adjustAmount);
 
-    await updateStudentFull({
-      id: student.id,
-      balance: finalAmount
-    });
-
-    setSuccessMsg(`${student.name} ning hisob balansi yangilandi: ${finalAmount.toLocaleString()} so‘m`);
-    setTimeout(() => setSuccessMsg(''), 3000);
+    setAdjusting(true);
+    try {
+      const result = await api.updateStudentFull({ id: student.id, balance: finalAmount, expectedBalance: currentBal, balanceReason: adjustNote });
+      await refreshDb();
+      if (result?.success !== true) {
+        setFinanceError(result?.message || 'Balansni yangilab bo‘lmadi.');
+        return;
+      }
+      setAdjustNote('');
+      setSuccessMsg(`${student.name} balansida ${result.user.balance.toLocaleString()} so‘m bor.`);
+    } catch {
+      setFinanceError('Aloqa uzildi. Qayta yuborishdan oldin balansni yangilab tekshiring.');
+    } finally {
+      setAdjusting(false);
+    }
   };
 
   const tabs = [
@@ -206,11 +239,16 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
 
       {successMsg && (
         <Reveal>
-          <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-3 text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-300">
+          <div role="status" className="flex items-center gap-2.5 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-3 text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{successMsg}</span>
           </div>
         </Reveal>
+      )}
+      {financeError && (
+        <div role="alert" className="rounded-2xl border border-red-500/25 bg-red-500/[0.08] px-4 py-3 text-[12.5px] font-semibold text-red-800 dark:text-red-300">
+          {financeError}
+        </div>
       )}
 
       {/* ---------------------------------------------------------------- */}
@@ -426,14 +464,15 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
                         </td>
                         <td className="whitespace-nowrap px-4 py-4 text-right">
                           {tx.status === 'pending' ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button variant="ember" size="sm" onClick={() => handleApprove(tx.id)}>
+                            <div className="flex items-center justify-end gap-1.5" aria-busy={reviewing === tx.id}>
+                              <Button variant="ember" size="sm" disabled={reviewing !== null} onClick={() => handleReview(tx.id, 'approve')}>
                                 Tasdiqlash
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleReject(tx.id)}
+                                disabled={reviewing !== null}
+                                onClick={() => handleReview(tx.id, 'reject')}
                                 className="border-red-500/25 text-red-600 hover:border-red-500/50 hover:bg-red-500/[0.06] dark:border-red-400/25 dark:text-red-400"
                               >
                                 Rad etish
@@ -607,10 +646,11 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
               kompensatsiya).
             </p>
 
-            <form onSubmit={handleManualAdjust} className="mt-6 space-y-4">
+            <form onSubmit={handleManualAdjust} aria-busy={adjusting} className="mt-6 space-y-4">
               <div>
-                <label className={label}>O‘quvchini tanlang</label>
+                <label htmlFor="finance-student" className={label}>O‘quvchini tanlang</label>
                 <select
+                  id="finance-student"
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
                   className={cn(field, 'cursor-pointer font-semibold')}
@@ -629,6 +669,7 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
+                      aria-pressed={adjustType === 'add'}
                       onClick={() => setAdjustType('add')}
                       className={cn(
                         'rounded-2xl border py-3 text-[12px] font-extrabold transition-all',
@@ -641,6 +682,7 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
                     </button>
                     <button
                       type="button"
+                      aria-pressed={adjustType === 'subtract'}
                       onClick={() => setAdjustType('subtract')}
                       className={cn(
                         'rounded-2xl border py-3 text-[12px] font-extrabold transition-all',
@@ -655,9 +697,12 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
                 </div>
 
                 <div>
-                  <label className={label}>Summa (so‘m)</label>
+                  <label htmlFor="finance-amount" className={label}>Summa (so‘m)</label>
                   <input
+                    id="finance-amount"
                     type="number"
+                    min={1}
+                    step={1}
                     required
                     value={adjustAmount}
                     onChange={e => setAdjustAmount(Number(e.target.value))}
@@ -667,9 +712,11 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
               </div>
 
               <div>
-                <label className={label}>Izoh / Sabab</label>
+                <label htmlFor="finance-reason" className={label}>Izoh / Sabab</label>
                 <input
+                  id="finance-reason"
                   type="text"
+                  maxLength={300}
                   placeholder="Masalan: Olimpiada 1-o‘rin mukofoti yoki qo‘lda to‘lov"
                   value={adjustNote}
                   onChange={e => setAdjustNote(e.target.value)}
@@ -678,8 +725,8 @@ export const DepositsFinanceManager: React.FC<{ botOnly?: boolean }> = ({ botOnl
               </div>
 
               <div className="pt-2">
-                <Button variant="primary" size="md" type="submit" iconLeft={<Check className="h-4 w-4" />}>
-                  Balansni Yangilash
+                <Button variant="primary" size="md" type="submit" disabled={adjusting || !selectedStudentId} iconLeft={<Check className="h-4 w-4" />}>
+                  {adjusting ? 'Yangilanmoqda…' : 'Balansni Yangilash'}
                 </Button>
               </div>
             </form>

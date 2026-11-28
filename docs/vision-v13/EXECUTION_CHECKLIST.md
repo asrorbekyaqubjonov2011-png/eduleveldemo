@@ -21,7 +21,7 @@
 | 17 | Mock Test | IMPLEMENTED | Draft, sessiya va grading uchun fixture | Brauzer, expiry va ochiq/cheklangan testlar |
 | 18 | Kutubxona | IMPLEMENTED | Tarifni joyida yangilash va serverda kontentni cheklash | Tarixiy tashqi public PDF URL va to‘liq brauzer oqimi |
 | 19 | Video darslar | INVENTORIED | 15 lesson API tekshiruvi | Haqiqiy YouTube va video playback |
-| 20 | VIP tizimi | IMPLEMENTED | Parallel VIP xaridi, Edu Coin mukofoti, depozit cheki va sayt/Telegram tasdiqlash sinovlari | Manual balans va barcha tarif/amallar bo‘yicha yakuniy qamrov |
+| 20 | VIP tizimi | IMPLEMENTED | Parallel VIP xaridi, Edu Coin mukofoti, depozit qarori va manual balansdagi stale update sinovlari | Barcha tarif va moliya amallari bo‘yicha yakuniy qamrov |
 | 21 | Profil tizimi | IMPLEMENTED | HTTPS profil, session va owner logout | Google OAuth, Telegram account link va barcha profil amallari |
 | 22 | Owner Panel | IMPLEMENTED | Owner qidiruvi, logout va barcha tablarning viewport tasvirlari | Barcha boshqaruv amallari |
 | 23 | Telegram bot | BLOCKED | 20 Telegram fake API tekshiruvi, jumladan sayt bilan parallel depozit tasdiqlash | BotFather, haqiqiy opt-in chat va webhook |
@@ -30,7 +30,7 @@
 | 26 | Firebase | BLOCKED | Firebase token verifikatsiyasi kodda | Firebase Console va Google OAuth |
 | 27 | Server optimizatsiyasi | INVENTORIED | Fixture SSR, API va auth smoke | CPU, memory, oldin/keyin server profili |
 | 28 | DB pooling | IMPLEMENTED | DB pool local/TLS host tanlash aniqlashtirildi | Pooling metrikalari, tranzaksiya va deadline auditi |
-| 29 | Load test | IMPLEMENTED | 24 mijozli 1344 so‘rov bosqichi, 0 HTTP 503 va health 200 | Render profil va production sig‘imi |
+| 29 | Load test | IMPLEMENTED | 2240 so‘rov, 0 HTTP 503, health 200 va Next RSS o‘lchovi | RSS cho‘qqisi, Render profil va production sig‘imi |
 | 30 | SEO | INVENTORIED | Production canonical domen va sitemap HTTP 200 | Search Console va IndexNow |
 | 31 | Har bir tugma/funksiya | INVENTORIED | 100 public route va 40 role/tab ssenariysi | Har bir tugma, role va mutatsiya |
 | 32 | Regression tests | LOCAL_VERIFIED | Baseline regressiya suite va yangi fixture testlari | Release oldidan to‘liq qamrov va CI |

@@ -3309,6 +3309,19 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     const { id, name, surname, phone, additionalPhone, email, telegramUsername, balance, region, vipTier, vipExpiresAt, isBlocked, bonusPoints, points, xp, bonusCoins, bonusXp } = body;
     const user = db.users.find((u) => u.id === id);
     if (!user) return NextResponse.json({ success: false, message: "O'quvchi topilmadi" }, { status: 404 });
+    const previousBalance = user.balance || 0;
+    const reviewedBalance = Object.hasOwn(body, 'expectedBalance');
+    if (reviewedBalance) {
+      if (user.role !== 'student' || !Number.isSafeInteger(body.expectedBalance) || !Number.isSafeInteger(balance) || balance < 0) {
+        return NextResponse.json({ success: false, message: 'Balans qiymatlarini tekshiring.' }, { status: 400 });
+      }
+      if (body.expectedBalance !== previousBalance) {
+        return NextResponse.json({
+          success: false, code: 'BALANCE_CHANGED', message: 'Balans o‘zgargan. Yangilangan summani tekshirib, qayta tasdiqlang.',
+          currentBalance: previousBalance
+        }, { status: 409 });
+      }
+    }
     if (name) user.name = name;
     if (surname !== undefined) user.surname = surname;
     if (phone) user.phone = phone;
@@ -3336,7 +3349,12 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     if (body.track && ['ielts', 'cefr', 'general'].includes(body.track)) user.track = body.track;
     if (typeof body.targetScore === 'string') user.targetScore = body.targetScore;
     if (user.isBlocked) await revokeUserSessions(user.id);
-    logAudit('Owner', 'UPDATE_STUDENT', 'User', `${user.name} ma'lumotlari (balans/coin/xp/telefon) to'liq tahrirlandi`);
+    if (reviewedBalance) {
+      const reason = typeof body.balanceReason === 'string' ? body.balanceReason.trim().slice(0, 300) : '';
+      logAudit('Owner', 'ADJUST_BALANCE', 'Finance', `${user.name}: ${previousBalance} → ${balance} so‘m${reason ? ' · ' + reason : ''}`);
+    } else {
+      logAudit('Owner', 'UPDATE_STUDENT', 'User', `${user.name} ma'lumotlari (balans/coin/xp/telefon) to'liq tahrirlandi`);
+    }
     
     return NextResponse.json({ success: true, user: publicUser(user) });
   }

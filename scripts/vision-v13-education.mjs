@@ -207,3 +207,15 @@ const depositor = (await request('other', 'GET', 'auth/me')).user;
 assert.equal(depositor.balance, amount);
 assert.equal(depositor.xp - vip.xp, amount / 1000);
 console.log('PASS duplicate receipt, owner authorization and single-credit website deposit approval');
+
+const update = { id: depositor.id, expectedBalance: amount, balance: amount + 1000, balanceReason: 'Fixture adjustment' };
+await request('other', 'POST', 'owner/students/update', update, 403);
+const changes = await Promise.all([
+  call('owner', 'POST', 'owner/students/update', update),
+  call('owner', 'POST', 'owner/students/update', update)
+]);
+assert.deepEqual(changes.map(result => result.status).sort(), [200, 409]);
+assert.equal(changes.find(result => result.status === 409).data.code, 'BALANCE_CHANGED');
+assert.equal((await request('other', 'GET', 'auth/me')).user.balance, amount + 1000);
+await request('owner', 'POST', 'owner/students/update', { ...update, expectedBalance: amount + 1000, balance: 1.5 }, 400);
+console.log('PASS parallel manual balance changes reject stale snapshots and preserve the committed balance');

@@ -1,6 +1,6 @@
 # Joriy holat
 
-`e143d16` ikkala CI tekshiruvidan o‘tdi. Placement saralangan eksporti, tayinlangan savollar bo‘yicha baholash, aloqa uzilganda javoblarni qayta yuborish va oxirgi muddati tugagan urinish bahosini saqlash tekshirildi. IELTS va CEFR Listening hamda provayder mavjud bo‘lmagan Writing va Speaking ssenariylari CI tarkibida. Kod PR #1 orqali topshirilmoqda.
+`dcd6fce` ikkala CI tekshiruvidan o‘tdi. Sayt va Telegram depozit qarorlarini bitta tranzaksiya qulfidan o‘tkazadi. Placement saralangan eksporti, tayinlangan savollar bo‘yicha baholash, aloqa uzilganda javoblarni qayta yuborish va oxirgi muddati tugagan urinish bahosini saqlash tekshirildi. IELTS va CEFR Listening hamda provayder mavjud bo‘lmagan Writing va Speaking ssenariylari CI tarkibida. Kod PR #1 orqali topshirilmoqda.
 
 9a64002 kodi qisqa DB burst uchun chegaralangan navbat, snapshot fingerprint keshi, dependency va chat ovozi tuzatishlarini olib keldi. [Yuklama va audit dalillari](OVERLOAD_AND_DEPENDENCIES.md)
 
