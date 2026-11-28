@@ -12,6 +12,7 @@ export interface RequestContext {
   baseline: Map<string, Map<string, string>>;
   /** The caller's session, resolved from the cookie before the handler runs. */
   session: SessionRecord | null;
+  afterCommit: Array<() => Promise<unknown>>;
 }
 
 const store = new AsyncLocalStorage<RequestContext>();

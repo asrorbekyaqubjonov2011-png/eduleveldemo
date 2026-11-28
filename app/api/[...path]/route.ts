@@ -9,7 +9,8 @@ import { randomUUID } from 'crypto';
 import QRCode from 'qrcode';
 import { syncVipGift } from '@/src/lib/vipGift';
 import { canWatchLessonVideo, normalizeVideoTiers, parseBunnyVideoId, readBunnyConfig, bunnySignedEmbedUrl } from '@/src/lib/videoAccess';
-import { getDatabase, logAudit, withDatabase } from '@/src/lib/dbStore';
+import { afterDatabaseCommit, getDatabase, logAudit, withDatabase } from '@/src/lib/dbStore';
+import { findDepositUser, reviewDeposit } from '@/src/lib/deposits';
 import {
   detectAiProviderAndModel,
   executeUniversalAi,
@@ -87,7 +88,7 @@ import {
 } from '@/src/lib/telegramStore';
 import { EXTRA_NAMES, runOwnerExtra, runStudentExtra, unlinkChat } from '@/src/lib/telegramExtras';
 import {
-  adminDeposits, adminTickets, aiKey, approveDeposit, askTutor, draftChannelIdeas, draftChannelPost, ideaFromList, withTyping, dailyText, digestText, notifyOwnerChat, rejectDeposit, faqText, findUserByTelegram, homeworkText, isChannelMember, lessonAnnouncement, newsText, pickTestForQuiz,
+  adminDeposits, adminTickets, aiKey, askTutor, draftChannelIdeas, draftChannelPost, ideaFromList, withTyping, dailyText, digestText, notifyOwnerChat, faqText, findUserByTelegram, homeworkText, isChannelMember, lessonAnnouncement, newsText, pickTestForQuiz,
   questionPool, randomTopic, reviewFromBot, teacherText, vipText,
   rewardReferralOnLesson, runDailyReminders, sendQuizPoll, sendTrackedQuizPoll, speakingFeedback, transcribeVoice, wordCard
 } from '@/src/lib/telegramGrowth';
@@ -1520,15 +1521,25 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
         const review = (db.reviews || []).find((r) => r.id === depId);
         if (review) review.status = action === 'ok' ? 'approved' : 'hidden';
         await reply(review ? (action === 'ok' ? '✅ Sharh tasdiqlandi va saytda chiqadi.' : '🚫 Sharh yashirildi.') : 'Sharh topilmadi.', { reply_markup: ADMIN_MENU });
-      } else if (kind === 'dep' && depId) {
-        const result = (action === 'ok' ? approveDeposit(db, depId) : rejectDeposit(db, depId)) as { ok: boolean; message: string; user?: any };
-        if (result.ok && action === 'ok' && result.user?.telegramUsername) {
-          const chat = await privateChatForUsername(result.user.telegramUsername).catch(() => null);
-          if (chat) await telegramNotify(chat, `💳 Depozitingiz tasdiqlandi. ${result.message.split(': ')[1] || ''} balansingizga qo‘shildi.`);
-        }
-        logAudit('Owner', action === 'ok' ? 'APPROVE_DEPOSIT' : 'REJECT_DEPOSIT', 'Finance', `Telegram bot: ${result.message}`);
+      } else if (kind === 'dep' && /^(ok|no)$/.test(action) && depId && data === `dep:${action}:${depId}`) {
+        const result = reviewDeposit(db, depId, action === 'ok' ? 'approve' : 'reject');
         const view = adminDeposits(db);
-        await reply(`${result.ok ? '✅' : '⚠️'} ${result.message}\n\n${view.text}`, view.markup.inline_keyboard.length ? { reply_markup: view.markup } : { reply_markup: ADMIN_MENU });
+        const markup = view.markup.inline_keyboard.length ? view.markup : ADMIN_MENU;
+        if (!result.ok) {
+          afterDatabaseCommit(() => reply(`⚠️ ${esc(result.message)}\n\n${view.text}`, { reply_markup: markup }));
+          return NextResponse.json({ ok: true });
+        }
+        const { transaction, user } = result;
+        const message = action === 'ok'
+          ? `${transaction.userName}: ${money(transaction.amount)} tasdiqlandi`
+          : `${transaction.userName}: depozit rad etildi`;
+        logAudit('Owner', action === 'ok' ? 'APPROVE_DEPOSIT' : 'REJECT_DEPOSIT', 'Finance', `Telegram bot: ${message}`);
+        afterDatabaseCommit(() => reply(`✅ ${esc(message)}\n\n${view.text}`, { reply_markup: markup }));
+        const username = user?.telegramUsername;
+        if (username) afterDatabaseCommit(async () => {
+          const chat = await privateChatForUsername(username);
+          if (chat) await telegramNotify(chat, `💳 Depozitingiz tasdiqlandi. ${money(transaction.amount)} balansingizga qo‘shildi.`);
+        });
       }
       return NextResponse.json({ ok: true });
     }
@@ -2301,7 +2312,8 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
 
   // 12. POST /api/deposits/request (2-Step Deposit)
   if (fullPath === 'deposits/request') {
-    const { userName, userPhone, telegramUsername, method = 'card', receiptUrl, cardNumber, note } = body;
+    const { userPhone, telegramUsername, method = 'card', receiptUrl, note } = body;
+    const receipt = typeof receiptUrl === 'string' ? receiptUrl.trim() : '';
     const amount = Number(body.amount);
     const userId = auth!.role === 'owner' ? body.userId : auth!.userId;
     // Amounts are stored in bigint columns: whole sums only, within a sane ceiling (a decimal or 1e20 would fail the write).
@@ -2322,7 +2334,7 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
         return NextResponse.json({ success: false, message: `Minimal depozit: ${min.toLocaleString()} so‘m` }, { status: 400 });
       }
       // The receipt (chek) is what the owner checks the payment against: it must be there, and must be one of our uploads or a web link.
-      if (typeof receiptUrl !== 'string' || !/^(https?:\/\/|\/)/i.test(receiptUrl.trim()) || receiptUrl.length > 800) {
+      if (!/^(https?:\/\/|\/)/i.test(receipt) || receipt.length > 800) {
         return NextResponse.json({ success: false, message: 'To‘lov chekini (skrinshot yoki rasm) yuklang.' }, { status: 400 });
       }
       if (amount > 50_000_000) {
@@ -2330,14 +2342,13 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
       }
     }
     // Whatever role asks, a receipt link must be a plain web or site-relative link (it is shown to the owner as an image/link).
-    if (receiptUrl && !(typeof receiptUrl === 'string' && /^(https?:\/\/|\/)/i.test(receiptUrl.trim()))) {
+    if (receiptUrl && !/^(https?:\/\/|\/)/i.test(receipt)) {
       return NextResponse.json({ success: false, message: 'Chek havolasi noto‘g‘ri.' }, { status: 400 });
     }
 
     // One receipt pays for one deposit, and a student cannot pile up unreviewed requests (duplicate-transaction guard).
     if (auth!.role !== 'owner') {
-      const receipt = String(receiptUrl || '').trim();
-      if (receipt && (db.depositTransactions || []).some((t) => t.receiptUrl === receipt && t.status !== 'rejected')) {
+      if (receipt && (db.depositTransactions || []).some((t) => t.receiptUrl?.trim() === receipt && t.status !== 'rejected')) {
         return NextResponse.json({ success: false, message: 'Bu chek allaqachon yuborilgan. Yangi to‘lov uchun yangi chek yuklang.', code: 'DUPLICATE_RECEIPT' }, { status: 409 });
       }
       const pendingMine = (db.depositTransactions || []).filter((t) => t.userId === auth!.userId && t.status === 'pending').length;
@@ -2346,28 +2357,25 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
       }
     }
 
-    let user = db.users.find((u) => u.id === userId);
-    if (!user && userPhone && auth!.role === 'owner') {
-      user = db.users.find((u) => u.phone && u.phone.replace(/\D/g, '') === userPhone.replace(/\D/g, ''));
+    const user = findDepositUser(db, userId, auth!.role === 'owner' ? userPhone : undefined);
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'Depozit uchun o‘quvchini tanlang.', code: 'USER_NOT_FOUND' }, { status: 409 });
     }
-
-    const finalUserId = user ? user.id : userId || 'user-' + Date.now();
-    const finalUserName = user ? `${user.name} ${user.surname || ''}`.trim() : userName || "O'quvchi";
-    const finalUserPhone = user ? user.phone : userPhone || '';
+    const finalUserName = `${user.name} ${user.surname || ''}`.trim();
     const code = `DEP-${Math.floor(10000 + Math.random() * 90000)}`;
-    const cleanTg = (telegramUsername || user?.telegramUsername || '').replace(/^@/, '');
+    const cleanTg = ((typeof telegramUsername === 'string' && telegramUsername) || user.telegramUsername || '').replace(/^@/, '');
 
     const newTx: DepositTransaction = {
       id: `dep-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
-      userId: finalUserId,
+      userId: user.id,
       userName: finalUserName,
-      userPhone: finalUserPhone,
+      userPhone: user.phone || '',
       telegramUsername: cleanTg,
       amount: Number(amount),
       status: 'pending', // Strictly pending until admin approval
       method: method || 'card',
       paymentCode: code,
-      receiptUrl: receiptUrl || '',
+      receiptUrl: receipt,
       cardNumber: db.telegramBotSettings?.cardNumber || '',
       note: note || `To'lov kodi: ${code}`,
       createdAt: new Date().toISOString()
@@ -2405,34 +2413,14 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
   // 13. POST /api/owner/deposits/approve/:id
   if (fullPath.startsWith('owner/deposits/approve/')) {
     const id = fullPath.replace('owner/deposits/approve/', '');
-    const tx = db.depositTransactions.find((t) => t.id === id);
-    if (!tx) return NextResponse.json({ success: false, message: 'Tranzaksiya topilmadi' }, { status: 404 });
-    if (tx.status !== 'pending') {
-      return NextResponse.json({ success: false, message: 'Bu tranzaksiya allaqachon ko‘rib chiqilgan' }, { status: 400 });
-    }
-
-    // The student must exist before the deposit is closed: otherwise the money would never reach a balance.
-    // Failing here rolls the request back (status 4xx), so the transaction stays pending for a retry.
-    let user = db.users.find((u) => u.id === tx.userId);
-    if (!user && tx.userPhone) {
-      user = db.users.find((u) => u.phone && u.phone.replace(/\D/g, '') === tx.userPhone.replace(/\D/g, ''));
-    }
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'Bu depozitning o‘quvchisi topilmadi. Depozit tasdiqlanmadi.', code: 'USER_NOT_FOUND' },
-        { status: 409 }
-      );
-    }
-
-    tx.status = 'completed';
-    tx.approvedAt = new Date().toISOString();
-    {
-      const who = db.users.find((u) => u.id === tx.userId);
-      if (who?.telegramUsername) void privateChatForUsername(who.telegramUsername).then((chat) => chat && telegramNotify(chat, `💳 Depozitingiz tasdiqlandi: ${money(tx.amount)} balansingizga qo‘shildi.`));
-    }
-
-    user.balance = (user.balance || 0) + tx.amount;
-    user.xp = (user.xp || 0) + Math.round(tx.amount / 1000); // 1 XP per 1000 UZS deposit bonus
+    const result = reviewDeposit(db, id, 'approve');
+    if (!result.ok) return NextResponse.json({ success: false, message: result.message, code: result.code }, { status: result.status });
+    const { transaction: tx, user } = result;
+    const username = user?.telegramUsername;
+    if (username) afterDatabaseCommit(async () => {
+      const chat = await privateChatForUsername(username);
+      if (chat) await telegramNotify(chat, `💳 Depozitingiz tasdiqlandi: ${money(tx.amount)} balansingizga qo‘shildi.`);
+    });
 
     logAudit(
       'Owner',
@@ -2447,12 +2435,9 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
   // 14. POST /api/owner/deposits/reject/:id
   if (fullPath.startsWith('owner/deposits/reject/')) {
     const id = fullPath.replace('owner/deposits/reject/', '');
-    const tx = db.depositTransactions.find((t) => t.id === id);
-    if (!tx) return NextResponse.json({ success: false, message: 'Tranzaksiya topilmadi' }, { status: 404 });
-    if (tx.status !== 'pending') {
-      return NextResponse.json({ success: false, message: 'Bu tranzaksiya allaqachon ko‘rib chiqilgan' }, { status: 400 });
-    }
-    tx.status = 'rejected';
+    const result = reviewDeposit(db, id, 'reject');
+    if (!result.ok) return NextResponse.json({ success: false, message: result.message }, { status: result.status });
+    const { transaction: tx } = result;
     logAudit('Owner', 'REJECT_DEPOSIT', 'Finance', `${tx.userName} ning depoziti rad etildi`);
     
     return NextResponse.json({ success: true, transaction: tx });

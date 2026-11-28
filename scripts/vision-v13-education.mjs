@@ -170,3 +170,40 @@ for (const ledger of ['xp', 'points', 'coins']) {
   assert.equal((afterEconomy[ledger] || 0) - (beforeEconomy[ledger] || 0), reward[ledger]);
 }
 console.log('PASS daily reward is credited to the student ledger once under concurrent requests');
+
+const { data: ownerSnapshot } = await request('owner', 'GET', 'db/all');
+const paidPlan = ownerSnapshot.vipPlans.find(plan => plan.priceMonthly > 0);
+assert.ok(paidPlan, 'The disposable database must have a paid VIP fixture plan');
+await request('owner', 'POST', 'owner/students/update', { id: beforeEconomy.id, balance: paidPlan.priceMonthly });
+const purchase = { action: 'vip_purchase', planId: paidPlan.id };
+const purchases = await Promise.all(Array.from({ length: 4 }, () => call('other', 'POST', 'student/economy', purchase)));
+assert.deepEqual(purchases.map(result => result.status).sort(), [200, 400, 400, 400]);
+for (const result of purchases.filter(result => result.status === 400)) {
+  assert.equal(result.data.reason, 'insufficient_balance');
+}
+const vip = (await request('other', 'GET', 'auth/me')).user;
+assert.equal(vip.balance, 0);
+assert.equal(vip.vipTier, paidPlan.id);
+assert.equal((await request('other', 'GET', 'db/all')).data.purchases.filter(row => row.userId === vip.id).length, 1);
+console.log('PASS concurrent VIP purchases debit the balance and write the ledger once');
+
+await request('owner', 'POST', 'owner/bot-settings', { botSettings: { cardNumber: '8600 0000 0000 0000', minDepositAmount: 1000 } });
+const receipt = '/api/uploads/fixture-' + randomUUID();
+const amount = 3000;
+const missing = await request('owner', 'POST', 'deposits/request', { userId: randomUUID(), amount }, 409);
+assert.equal(missing.code, 'USER_NOT_FOUND');
+const deposits = await Promise.all([
+  call('other', 'POST', 'deposits/request', { receiptUrl: '  ' + receipt + ' ', amount }),
+  call('other', 'POST', 'deposits/request', { receiptUrl: receipt, amount }),
+]);
+assert.deepEqual(deposits.map(result => result.status).sort(), [200, 409]);
+assert.equal(deposits.find(result => result.status === 409).data.code, 'DUPLICATE_RECEIPT');
+const { transaction } = deposits.find(result => result.status === 200).data;
+assert.equal(transaction.receiptUrl, receipt);
+await request('other', 'POST', 'owner/deposits/approve/' + transaction.id, {}, 403);
+const approvals = await Promise.all(Array.from({ length: 3 }, () => call('owner', 'POST', 'owner/deposits/approve/' + transaction.id, {})));
+assert.deepEqual(approvals.map(result => result.status).sort(), [200, 400, 400]);
+const depositor = (await request('other', 'GET', 'auth/me')).user;
+assert.equal(depositor.balance, amount);
+assert.equal(depositor.xp - vip.xp, amount / 1000);
+console.log('PASS duplicate receipt, owner authorization and single-credit website deposit approval');

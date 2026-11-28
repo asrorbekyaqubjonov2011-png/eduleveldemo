@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import type { AppDatabase, AuditLog } from '../types';
 import { createAdmission } from './db/admission';
 import { getPool } from './db/pool';
@@ -35,6 +35,10 @@ function dropSnapshotCache(): void {
 /** The snapshot for the current request. Only valid inside withDatabase(). */
 export function getDatabase(): AppDatabase {
   return requireContext().db;
+}
+
+export function afterDatabaseCommit(effect: () => Promise<unknown>): void {
+  requireContext().afterCommit.push(effect);
 }
 
 export function logAudit(actor: string, action: string, entity: string, details: string): void {
@@ -120,11 +124,15 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
     // write, a transaction is opened just before its first write.
     // AI calls last many seconds: they too wait to open a transaction until something has to be written,
     // so a slow answer never holds a database transaction open.
-    // The Telegram webhook reads far more than it writes, so it opens a transaction only when it writes.
+    // Telegram deposit decisions must take the same lock as website decisions before loading balances.
+    // Other webhook updates keep the existing lazy transaction.
     const isWebhook = req.nextUrl.pathname === '/api/telegram/webhook';
     // Level routes use the request transaction for atomic scoring and answer writes.
     const isLevel = /^\/api\/levels\/attempts\/[^/]+\/?$/.test(req.nextUrl.pathname);
-    const isRead = !isLevel && (req.method === 'GET' || req.method === 'HEAD' || req.nextUrl.pathname.startsWith('/api/ai/') || isWebhook);
+    const callback = isWebhook ? (await req.clone().json().catch(() => null))?.callback_query?.data : undefined;
+    const reviewsDeposit = typeof callback === 'string' && /^dep:(ok|no):[^:]+$/.test(callback);
+    const movesMoney = reviewsDeposit || MONEY_PATH.test(req.nextUrl.pathname);
+    const isRead = !reviewsDeposit && !isLevel && (req.method === 'GET' || req.method === 'HEAD' || req.nextUrl.pathname.startsWith('/api/ai/') || isWebhook);
     const poolMs = performance.now() - acquireStarted;
     const started = Date.now();
     let inTx = false;
@@ -145,7 +153,7 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
         await openTx();
         // Requests that move money or VIP time run one after another: two concurrent purchases from one balance used to
         // both succeed (each read the same balance). The lock is released when this transaction ends.
-        if (MONEY_PATH.test(req.nextUrl.pathname)) await client.query('select pg_advisory_xact_lock($1)', [MONEY_LOCK_KEY]);
+        if (movesMoney) await client.query('select pg_advisory_xact_lock($1)', [MONEY_LOCK_KEY]);
         // Serialize duplicate registration requests for the same normalized identifier before loading the snapshot.
         if (req.nextUrl.pathname === '/api/auth/register') {
           const body = await req.clone().json().catch(() => ({}));
@@ -173,12 +181,19 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
       syncVipGift(db); // after the baseline, so what it changes is saved
       setRoutingConfig(db.aiRouting as never); // the running server follows the owner's saved AI routing
       const loaded = Date.now();
-      const response = await runWithContext({ client, db, baseline, session }, () => handler(req, ...args));
+      const afterCommit: Array<() => Promise<unknown>> = [];
+      const response = await runWithContext({ client, db, baseline, session, afterCommit }, () => handler(req, ...args));
       const handled = Date.now();
       let touched = 0;
       if (response.status < 400) {
         touched = await persistDatabase(isRead ? lazyTx : client, db, baseline);
         if (inTx) await client.query('commit');
+        if (afterCommit.length) after(async () => {
+          const results = await Promise.allSettled(afterCommit.map(effect => effect()));
+          for (const result of results) {
+            if (result.status === 'rejected') console.warn('[db] post-commit effect failed:', result.reason);
+          }
+        });
       } else if (inTx) {
         await client.query('rollback');
       }

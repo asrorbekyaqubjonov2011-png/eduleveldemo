@@ -450,29 +450,6 @@ export function adminTickets(db: AppDatabase): string {
   return ['🆘 Yangi murojaatlar', '', ...open.map((t, i) => `${i + 1}. ${esc(t.userName)}: ${esc(t.message.slice(0, 140))}`)].join('\n');
 }
 
-/** Approves a pending deposit with the same rules as the site's owner panel. Returns the account it credited. */
-export function approveDeposit(db: AppDatabase, id: string): { ok: boolean; message: string; user?: User } {
-  const tx = (db.depositTransactions || []).find((t) => t.id === id);
-  if (!tx) return { ok: false, message: 'Tranzaksiya topilmadi' };
-  if (tx.status !== 'pending') return { ok: false, message: 'Bu tranzaksiya allaqachon ko‘rib chiqilgan' };
-  tx.status = 'completed';
-  tx.approvedAt = new Date().toISOString();
-  const user = db.users.find((u) => u.id === tx.userId);
-  if (user) {
-    user.balance = (user.balance || 0) + tx.amount;
-    user.xp = (user.xp || 0) + Math.round(tx.amount / 1000);
-  }
-  return { ok: true, message: `${esc(tx.userName)}: ${money(tx.amount)} tasdiqlandi`, user };
-}
-
-export function rejectDeposit(db: AppDatabase, id: string): { ok: boolean; message: string } {
-  const tx = (db.depositTransactions || []).find((t) => t.id === id);
-  if (!tx) return { ok: false, message: 'Tranzaksiya topilmadi' };
-  if (tx.status !== 'pending') return { ok: false, message: 'Bu tranzaksiya allaqachon ko‘rib chiqilgan' };
-  tx.status = 'rejected';
-  return { ok: true, message: `${tx.userName}: depozit rad etildi` };
-}
-
 /** Flashcards waiting for review today, for this student. */
 export function flashcardsDueText(db: AppDatabase, user: User | undefined): string {
   if (!user) return 'Takrorlash uchun avval hisobingizni ulang: /ulash KOD';

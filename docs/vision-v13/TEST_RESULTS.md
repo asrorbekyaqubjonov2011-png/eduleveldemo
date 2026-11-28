@@ -55,3 +55,11 @@ Izolyatsiyalangan IELTS va CEFR Listening fixturelari transcriptni sessiyagacha 
 Oxirgi muddati tugagan urinish ochilganda baho tranzaksiyada saqlanadi. Keyingi start 409 qaytaradi. Test faqat loopback fixture bazasidagi sintetik urinish vaqtini o‘zgartiradi. Placement API 44 ta tekshiruvdan o‘tdi. Yangilangan kodda TypeScript, Next.js build va 208 unit test o‘tdi. ESLint 0 xato va 85 ogohlantirish. Dependency auditda 5 moderate advisory qaytdi.
 
 `e417e98` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46158214111) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46158214095) o‘tdi.
+
+`e143d16` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46158628974) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46158629088) o‘tdi. Linux Microsoft Edge 142 da landing, IELTS va Mini App 9 viewport bo‘yicha 27/27 tekshiruvdan o‘tdi.
+
+## Depozit va VIP tranzaksiyalari
+
+- 210 unit, 11 ta education/API ssenariysi, 20 Telegram simulyatsion tekshiruvi, TypeScript va Next.js build o‘tdi. ESLint 0 xato va 85 ogohlantirish.
+- Izolyatsiyalangan Postgresda to‘rtta parallel VIP xarididan bittasi balansni yechdi va ledgerga yozildi. Bir xil chek URLi uchun bitta so‘rov qabul qilindi. Owner huquqi va qayta tasdiqlash tekshirildi.
+- Sayt va Telegramdan bir vaqtda yuborilgan bir depozit tasdig‘i bitta balans va XP kreditini berdi. Ikkita alohida depozit parallel tasdiqlanganda ikkala kredit ham saqlandi. Telegram chaqiruvlari fake transportda bajarildi.

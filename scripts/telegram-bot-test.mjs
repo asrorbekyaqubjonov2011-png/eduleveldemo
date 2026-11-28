@@ -4,10 +4,15 @@
 //   DATABASE_URL=... TELEGRAM_BOT_TOKEN=test:token TELEGRAM_WEBHOOK_SECRET=hooksecret TELEGRAM_CRON_SECRET=cronsecret TELEGRAM_API_BASE=http://localhost:4555 npx next start -p 3101
 //   PGHOST=/tmp PGPORT=5433 PGUSER=postgres PGDATABASE=edulevel node scripts/telegram-bot-test.mjs
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 
 const BASE = process.env.BASE_URL || 'http://localhost:3101';
 const FAKE = process.env.FAKE_TELEGRAM || 'http://localhost:4555';
-if (!/localhost|127\.0\.0\.1/.test(BASE) || !/localhost|127\.0\.0\.1/.test(FAKE)) { console.error('Refusing to run: local server and fake Telegram only.'); process.exit(2); }
+const isLocal = value => ['localhost', '127.0.0.1'].includes(new URL(value).hostname);
+if (!isLocal(BASE) || !isLocal(FAKE) || !['localhost', '127.0.0.1', '/tmp'].includes(process.env.PGHOST) || process.env.PGDATABASE !== 'edulevel') {
+  console.error('Refusing to run: local server, fake Telegram and disposable edulevel database only.');
+  process.exit(2);
+}
 const SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || 'hooksecret';
 const psql = (sql) => execFileSync('psql', ['-At', '-c', sql], { env: process.env }).toString().trim();
 let failures = 0;
@@ -47,6 +52,49 @@ const impostor = await send(msg(8002, 'ownertg', '/post IELTS'));
 check('same username but another account: refused', impostor.texts.some((t) => /faqat ustoz/i.test(t)));
 const owner2 = await send(msg(7001, 'ownertg', '/reja'));
 check('real owner still accepted', !owner2.texts.some((t) => /faqat ustoz/i.test(t)));
+
+const call = async (path, data, cookie) => fetch(BASE + '/api/' + path, {
+  method: data === undefined ? 'GET' : 'POST',
+  headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+  body: JSON.stringify(data)
+});
+const sessionCookie = response => response.headers.getSetCookie().find(value => value.startsWith('el_session='))?.split(';')[0];
+const email = randomUUID() + '@test.local';
+const registration = await call('auth/register', { name: 'Telegram', surname: 'Fixture', email, identifier: email, password: 'OnlyFixture123!' });
+const studentCookie = sessionCookie(registration);
+const ownerCookie = sessionCookie(await call('auth/login', { loginInput: process.env.OWNER_USERNAME, password: process.env.OWNER_PASSWORD }));
+if (!studentCookie || !ownerCookie) throw new Error('Finance fixture sessions are unavailable');
+const student = async () => (await (await call('auth/me', undefined, studentCookie)).json()).user;
+const before = await student();
+const deposit = async amount => {
+  const response = await call('deposits/request', { userId: before.id, amount, method: 'manual' }, ownerCookie);
+  if (!response.ok) throw new Error('Finance fixture deposit could not be created: ' + response.status);
+  return (await response.json()).transaction.id;
+};
+const approve = id => send({
+  callback_query: { id: randomUUID(), from: { id: 7001, username: 'ownertg' }, data: 'dep:ok:' + id, message: { message_id: 2, chat: { id: 7001, type: 'private' } }
+  }
+});
+const duplicateId = await deposit(4000);
+const [botApproval, webApproval] = await Promise.all([
+  approve(duplicateId),
+  call('owner/deposits/approve/' + duplicateId, {}, ownerCookie)
+]);
+const afterDuplicate = await student();
+check('parallel site and Telegram approvals credit balance and XP once',
+  botApproval.s === 200 && [200, 400].includes(webApproval.status)
+  && afterDuplicate.balance - (before.balance || 0) === 4000 && afterDuplicate.xp - (before.xp || 0) === 4);
+
+const botId = await deposit(2000);
+const webId = await deposit(3000);
+const [botSecond, webSecond] = await Promise.all([
+  approve(botId),
+  call('owner/deposits/approve/' + webId, {}, ownerCookie)
+]);
+const afterBoth = await student();
+check('parallel approvals for separate deposits retain both credits',
+  botSecond.s === 200 && webSecond.status === 200
+  && afterBoth.balance - afterDuplicate.balance === 5000 && afterBoth.xp - afterDuplicate.xp === 5);
 
 const group = await send(msg(5002, 'student_b', 'salom hammaga', 'supergroup'));
 check('plain group chatter is ignored (no reply)', group.s === 200 && group.texts.length === 0);

@@ -5,7 +5,7 @@
 | 01 | Bosh sahifa premium redesign | IMPLEMENTED | Yangi optik hero, CTA, SSR va Chromium ekranlari | Site Builder tahrirlash oqimi va oldin/keyin vizual qabul |
 | 02 | Apple-inspired Liquid Glass | IMPLEMENTED | Light/dark glass tokenlari, header, avatar va Mini App materiallari | Kontrast va barcha ichki komponentlar auditi |
 | 03 | Scrolling animatsiyalar | IMPLEMENTED | CSS scroll timeline, native fallback, reduced motion, sahifa almashuvi | Touch qurilmada kadr va scroll o‘lchovi |
-| 04 | Mobil va desktop | IMPLEMENTED | Chromium, WebKit va Firefoxda har engine uchun 27 public holat | Haqiqiy Android/Edge va qolgan interaktiv holatlar |
+| 04 | Mobil va desktop | IMPLEMENTED | Chromium, WebKit, Firefox va Linux Microsoft Edge’da 27 tadan public holat | Haqiqiy Android va qolgan interaktiv holatlar |
 | 05 | EduBek avatar | LOCAL_VERIFIED | SVG visor, tana va EduLevel identifikatsiyasi. Voice PNG | — |
 | 06 | EduBek mimika/lip-sync | IMPLEMENTED | Bosh, blink, playback va browser word-boundary | Haqiqiy mikrofon va fonema bo‘yicha sinov |
 | 07 | AI real streaming | IMPLEMENTED | Stream unit testlari va brauzer bekor qilish tekshiruvi | Jonli tasdiqlangan bepul provayderda matn oqimi |
@@ -21,10 +21,10 @@
 | 17 | Mock Test | IMPLEMENTED | Draft, sessiya va grading uchun fixture | Brauzer, expiry va ochiq/cheklangan testlar |
 | 18 | Kutubxona | IMPLEMENTED | Tarifni joyida yangilash va serverda kontentni cheklash | Tarixiy tashqi public PDF URL va to‘liq brauzer oqimi |
 | 19 | Video darslar | INVENTORIED | 15 lesson API tekshiruvi | Haqiqiy YouTube va video playback |
-| 20 | VIP tizimi | INVENTORIED | Depozit, promo, VIP gift va parallel Edu Coin muhofazasi lokal sinovi | Ledger va allaqachon ishlab turgan moliya holatlari |
+| 20 | VIP tizimi | IMPLEMENTED | Parallel VIP xaridi, Edu Coin mukofoti, depozit cheki va sayt/Telegram tasdiqlash sinovlari | Manual balans va barcha tarif/amallar bo‘yicha yakuniy qamrov |
 | 21 | Profil tizimi | IMPLEMENTED | HTTPS profil, session va owner logout | Google OAuth, Telegram account link va barcha profil amallari |
 | 22 | Owner Panel | IMPLEMENTED | Owner qidiruvi, logout va barcha tablarning viewport tasvirlari | Barcha boshqaruv amallari |
-| 23 | Telegram bot | BLOCKED | 18 Telegram fake API tekshiruvi | BotFather, haqiqiy opt-in chat va webhook |
+| 23 | Telegram bot | BLOCKED | 20 Telegram fake API tekshiruvi, jumladan sayt bilan parallel depozit tasdiqlash | BotFather, haqiqiy opt-in chat va webhook |
 | 24 | Telegram Mini App | IMPLEMENTED | Mini App HMAC route va oltita browser shortcut | Haqiqiy Telegram ilovasi hamda link oqimi |
 | 25 | Supabase | INVENTORIED | 6 migration lokal, production read-only agregat | Production backup/restore va DB connection target |
 | 26 | Firebase | BLOCKED | Firebase token verifikatsiyasi kodda | Firebase Console va Google OAuth |
@@ -36,7 +36,7 @@
 | 32 | Regression tests | LOCAL_VERIFIED | Baseline regressiya suite va yangi fixture testlari | Release oldidan to‘liq qamrov va CI |
 | 33 | Production build | CI_VERIFIED | TypeScript, ESLint, unit va Next.js build | Production release SHA uchun qayta tekshiruv |
 | 34 | Screenshotlar | IMPLEMENTED | Public va protected desktop/tablet/mobile PNG | Qolgan modallar, to‘liq bir xil before/after va real qurilmalar |
-| 35 | GitHub source-code handoff | CI_VERIFIED | e417e98 clean CI, lokal detached checkout build, lockfile, konfiguratsiya, migratsiya va assetlar | Yakuniy release SHA uchun qayta tekshirish |
+| 35 | GitHub source-code handoff | CI_VERIFIED | e143d16 ikki CI tekshiruvi, lokal detached checkout build, lockfile, konfiguratsiya, migratsiya va assetlar | Yakuniy release SHA uchun qayta tekshirish |
 | 36 | Render production deploy | BLOCKED | www CNAME va production sitemap fingerprint edu-level.onrender.com bilan mos | Render production service ID, branch, deploy SHA, backup va ruxsat |
 
 Jadvaldagi status tegishli dalil darajasini bildiradi. Hozirgi checkout va CI dalillari yakuniy release SHA uchun qayta tekshiriladi. Production tasdiqlangan bandlar 0/36.

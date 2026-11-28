@@ -7,6 +7,7 @@
 | Placement | Fullscreen, timer ogohlantirishi, flag, complaint, grading va eksport | Production release smoke ochiq |
 | Mock | Draft, keys, start/resume, save, grading, duplicate submit, review | Expiry va brauzer oqimi ochiq |
 | Library | Create, tarif, reader role, PDF va delete | Tarixiy public tashqi storage ochiq |
+| VIP va depozit | Parallel VIP xaridi va ledger, chek dublikati, sayt/Telegram orqali yagona kredit | Qolgan moliya amallari va jonli provayderlar ochiq |
 | AI | Sakkiz adapter kontrakti, cancel, free routing | Jonli free model dalili kerak |
 | Telegram | Fake transport va Mini App HMAC sinovi | Real Telegram test chat ochiq |
 | Admission | FIFO, timeout, abort, queue limit va aralash 24 mijoz | Render qamrovi ochiq |
