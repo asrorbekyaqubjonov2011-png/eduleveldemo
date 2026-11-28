@@ -30,7 +30,7 @@
 | 26 | Firebase | BLOCKED | Firebase token verifikatsiyasi kodda | Firebase Console va Google OAuth |
 | 27 | Server optimizatsiyasi | INVENTORIED | Fixture SSR, API va auth smoke | CPU, memory, oldin/keyin server profili |
 | 28 | DB pooling | IMPLEMENTED | DB pool local/TLS host tanlash aniqlashtirildi | Pooling metrikalari, tranzaksiya va deadline auditi |
-| 29 | Load test | IMPLEMENTED | Nazoratli aralash HTTPS workload skripti | CPU, memory, uzaytirilgan ramp va recovery |
+| 29 | Load test | IMPLEMENTED | 3 takroriy va 1 ro‘yxatdan o‘tish aralash yuklamasida 24 mijoz, 0 HTTP 503 | Render profil va production sig‘imi |
 | 30 | SEO | INVENTORIED | Production canonical domen va sitemap HTTP 200 | Search Console va IndexNow |
 | 31 | Har bir tugma/funksiya | INVENTORIED | 100 public route va 40 role/tab ssenariysi | Har bir tugma, role va mutatsiya |
 | 32 | Regression tests | LOCAL_VERIFIED | Baseline regressiya suite va yangi fixture testlari | Release oldidan to‘liq qamrov va CI |

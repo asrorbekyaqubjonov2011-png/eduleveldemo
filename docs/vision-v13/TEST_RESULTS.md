@@ -17,3 +17,9 @@
 | GitHub Actions | 1106f68 | Verification o‘tdi. Integration workflow ishlamoqda |
 
 [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46127620988) · [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46127620989)
+
+## 9a64002 dastur kodi
+
+Locked install, TypeScript, 204 unit test va Next production build o‘tdi. ESLint 0 error va 88 warning ko‘rsatdi. 48 smoke, 10 Dock, 15 Placement browser, 34 Placement API, 18 Telegram simulyatsiya va 2 education API ssenariysi o‘tdi. Yangi EduBek testida qo‘lda Tinglash, auto voice o‘chiq holati va ovozli suhbatga o‘tganda bekor qilish tasdiqlandi. Audio vositalari browser fixture bilan almashtirilgan.
+
+[Yuklama va dependency](OVERLOAD_AND_DEPENDENCIES.md)
