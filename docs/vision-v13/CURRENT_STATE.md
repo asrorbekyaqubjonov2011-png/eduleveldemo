@@ -1,5 +1,7 @@
 # Joriy holat
 
+`e417e98` ikkala CI tekshiruvidan o‘tdi. Placement saralangan exporti, yangidan qo‘shilgan savollardan bahoni himoyalash va uzilgan autosave retry tekshirildi. Navbatdagi kod oxirgi expired urinishning bahosini saqlaydi. IELTS va CEFR Listening fixture hamda Writing/Speaking no-provider sinovlari CI tarkibida. Yakuniy kod topshiruvi PR #1 orqali.
+
 9a64002 kodi qisqa DB burst uchun chegaralangan navbat, snapshot fingerprint keshi, dependency va chat ovozi tuzatishlarini olib keldi. [Yuklama va audit dalillari](OVERLOAD_AND_DEPENDENCIES.md)
 
 Kod va sinovlar SHA `1106f689aec6f8bb447b49a752ab0593b96a5c6f`. GitHub PR #1, `vision-v12-reliability`. Production relizi ochiq.

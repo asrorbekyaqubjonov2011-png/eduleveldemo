@@ -354,6 +354,7 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
     } else {
       setResult(data.result || null);
       setStatus('done');
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     }
   }, [attemptId, flushAnswers]);
 

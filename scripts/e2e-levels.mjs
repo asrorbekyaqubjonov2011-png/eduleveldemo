@@ -167,5 +167,36 @@ check('student blocked from owner list', sOwn.s === 403, String(sOwn.s));
 const anon = await j('/api/levels/tests');
 check('anonymous blocked from student list', anon.s === 401, String(anon.s));
 
+if (process.env.PLACEMENT_EXPIRY_FIXTURE === '1') {
+  if (process.env.PGHOST !== '127.0.0.1' || process.env.PGDATABASE !== 'edulevel') throw new Error('Disposable Postgres fixture required');
+  const { Client } = (await import('pg')).default;
+  const fixtureDb = new Client();
+  const expired = await j('/api/levels/owner', { method: 'POST', headers: O, body: JSON.stringify({ title: 'Expiry fixture', attemptsAllowed: 1 }) });
+  const testId = expired.b.id;
+  const ownerTest = `/api/levels/owner/${testId}`;
+  await j(ownerTest + '/questions', { method: 'POST', headers: O, body: JSON.stringify({ questions: [{ prompt: 'Fixture question', options: ['a', 'b'], correctIndex: 0 }] }) });
+  await j(ownerTest, { method: 'PATCH', headers: O, body: JSON.stringify({ status: 'published' }) });
+  const finishPath = `/api/levels/tests/${testId}/start`;
+  const details = JSON.stringify({ firstName: 'Expiry', lastName: 'Fixture', className: '9-A' });
+  const start = await j(finishPath, { method: 'POST', headers: S, body: details });
+  check('expiry fixture starts its sole attempt', start.s === 201 && !!start.b.attemptId);
+  await fixtureDb.connect();
+  try {
+    const changed = await fixtureDb.query(
+      "update public.level_attempts set deadline_at = now() - interval '1 second' where id = $1 and test_id = $2",
+      [start.b.attemptId, testId]
+    );
+    check('expired deadline is set on the disposable fixture row', changed.rowCount === 1);
+    const open = await j(finishPath, { method: 'POST', headers: S, body: details });
+    const saved = await fixtureDb.query('select status, score from public.level_attempts where id = $1', [start.b.attemptId]);
+    check('resuming the final expired attempt commits its grade', open.s === 200 && open.b.status === 'expired' &&
+      open.b.attemptId === start.b.attemptId && saved.rows[0]?.status === 'expired' && saved.rows[0].score === 0);
+    const retry = await j(finishPath, { method: 'POST', headers: S, body: details });
+    check('starting a new attempt remains forbidden after expiry at the limit', retry.s === 409);
+  } finally {
+    await fixtureDb.end();
+  }
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED');
 process.exit(fails ? 1 : 0);

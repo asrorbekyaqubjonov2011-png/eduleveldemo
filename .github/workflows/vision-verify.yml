@@ -98,7 +98,7 @@ jobs:
         if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         run: |
           node scripts/vision-v13-education.mjs
-          node scripts/e2e-levels.mjs
+          PLACEMENT_EXPIRY_FIXTURE=1 node scripts/e2e-levels.mjs
       - name: Telegram simulated API
         if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         run: node scripts/telegram-bot-test.mjs

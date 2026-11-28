@@ -51,3 +51,7 @@ Lokal Placement brauzer sinovi 17 ta tekshiruvdan o‘tdi. Ikki yangi tekshiruv 
 Firefox qayta sinovda 9 viewport bo‘yicha landing, IELTS va Mini App uchun 27/27 HTTP 200 va overflow tekshiruvidan o‘tdi. Bu desktop runner emulyatsiyasi.
 
 Izolyatsiyalangan IELTS va CEFR Listening fixturelari transcriptni sessiyagacha berkitish, track ruxsati, autosave, resume va server bahosini tekshirdi. Writing/Speaking fixtureda provayder konfiguratsiyasi yo‘q holatda aniq xato qaytdi va submission tarixi o‘zgarmadi. Jonli model bahosi va real audio qamrovi ochiq.
+
+Oxirgi muddati tugagan urinish ochilganda baho tranzaksiyada saqlanadi. Keyingi start 409 qaytaradi. Test faqat loopback fixture bazasidagi sintetik urinish vaqtini o‘zgartiradi. Placement API 44 ta tekshiruvdan o‘tdi. Yangilangan kodda TypeScript, Next.js build va 208 unit test o‘tdi. ESLint 0 xato va 85 ogohlantirish. Dependency auditda 5 moderate advisory qaytdi.
+
+`e417e98` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46158214111) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46158214095) o‘tdi.
