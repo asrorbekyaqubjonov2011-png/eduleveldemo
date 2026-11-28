@@ -1,4 +1,7 @@
-import fs from "node:fs";
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 // Level tests (Levelni aniqlash) end-to-end check against a LOCAL or staging server.
 // Usage: BASE=http://localhost:3100 OWNER_USERNAME=jasurbek OWNER_PASSWORD=... node scripts/e2e-levels.mjs
@@ -79,6 +82,16 @@ const reuse = await j(`/api/levels/attempts/${aid}/unlock`, { method: 'POST', he
 check('unlock code cannot be reused', reuse.s === 409, String(reuse.s));
 
 // 10. finish -> score, level from rules, certificate
+const addedDuringAttempt = await j(`/api/levels/owner/${id}/questions`, {
+  method: 'POST', headers: O, body: JSON.stringify({ questions: [{ prompt: 'Added during attempt', options: ['a', 'b'], correctIndex: 0, points: 2 }] })
+});
+check('owner may add a question during an active attempt', addedDuringAttempt.s === 201);
+const resumed = await j(`/api/levels/tests/${id}/start`, {
+  method: 'POST', headers: S, body: JSON.stringify({ firstName: 'Ali', lastName: 'Valiyev', className: '9-A' })
+});
+const resumedState = await j(`/api/levels/attempts/${aid}`, { headers: S });
+check('resume keeps the assigned questions and saved answers',
+  resumed.b.attemptId === aid && resumed.b.resumed && resumedState.b.questions?.length === 2 && resumedState.b.answers?.[q1.id] === 1);
 const fin = await j(`/api/levels/attempts/${aid}`, { method: 'POST', headers: S });
 check('finish returns result', fin.b.success && fin.b.result, JSON.stringify(fin.b));
 check('score 2 of 3 points = 67% -> B1', fin.b.result?.level === 'B1' && Math.round(fin.b.result?.percent) === 67, JSON.stringify(fin.b.result));
@@ -98,6 +111,24 @@ check('xlsx report downloads', rep.status === 200 && buf.slice(0, 2).toString() 
 fs.writeFileSync('/tmp/e2e-report.xlsx', buf);
 const repd = await fetch(`${BASE}/api/levels/owner/${id}/report?format=docx`, { headers: O });
 check('docx report downloads', repd.status === 200 && Buffer.from(await repd.arrayBuffer()).slice(0, 2).toString() === 'PK');
+
+const reportUrl = `${BASE}/api/levels/owner/${id}/report`;
+const reportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'placement-summary-'));
+try {
+  for (const [format, entry] of [['xlsx', 'xl/worksheets/sheet1.xml'], ['docx', 'word/document.xml']]) {
+    const response = await fetch(`${reportUrl}?format=${format}&view=summary`, { headers: O });
+    const filename = path.join(reportDir, 'fixture.' + format);
+    fs.writeFileSync(filename, Buffer.from(await response.arrayBuffer()));
+    const xml = response.ok ? execFileSync('unzip', ['-p', filename, entry], { encoding: 'utf8' }) : '';
+    check(format + ' summary keeps the higher-scoring attempt only',
+      response.ok && xml.includes(aid) && !xml.includes(st2.b.attemptId) && xml.includes('9-A') &&
+      response.headers.get('cache-control') === 'private, no-store');
+  }
+  const studentExport = await fetch(reportUrl + '?view=summary', { headers: S });
+  check('summary export remains owner only', studentExport.status === 403);
+} finally {
+  fs.rmSync(reportDir, { recursive: true, force: true });
+}
 
 // 13. code-protected test
 const ct = await j('/api/levels/owner', { method: 'POST', headers: O, body: JSON.stringify({ kind: 'tournament', title: 'E2E kodli turnir', access: 'code', timeLimitSeconds: 600 }) });

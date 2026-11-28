@@ -4,7 +4,12 @@ import { levelForPercent, scoreAnswers, GradingRule } from './logic';
 /** Finalises an attempt: scores the answers, applies the owner's grading rules, and issues a certificate when earned. */
 export async function finalizeAttempt(attempt: any, status: 'finished' | 'expired') {
   const pool = requireContext().client;
-  const qs = await pool.query('select id, correct_index, points from public.level_questions where test_id = $1', [attempt.test_id]);
+  const assigned = Array.isArray(attempt.question_order) ? attempt.question_order : null;
+  // The runner displays the assigned IDs. Later additions belong only to new attempts.
+  const qs = await pool.query(
+    'select id, correct_index, points from public.level_questions where test_id = $1 and ($2::text[] is null or id = any($2::text[]))',
+    [attempt.test_id, assigned]
+  );
   const { score, maxScore, percent } = scoreAnswers(qs.rows, attempt.answers ?? {});
   const rules = Array.isArray(attempt.grading_rules) ? (attempt.grading_rules as GradingRule[]) : [];
   const graded = levelForPercent(percent, rules);

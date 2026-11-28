@@ -36,7 +36,7 @@
 | 32 | Regression tests | LOCAL_VERIFIED | Baseline regressiya suite va yangi fixture testlari | Release oldidan to‘liq qamrov va CI |
 | 33 | Production build | CI_VERIFIED | TypeScript, ESLint, unit va Next.js build | Production release SHA uchun qayta tekshiruv |
 | 34 | Screenshotlar | IMPLEMENTED | Public va protected desktop/tablet/mobile PNG | Qolgan modallar, to‘liq bir xil before/after va real qurilmalar |
-| 35 | Yakuniy ZIP | IMPLEMENTED | Davom ettirish arxivi va manifest | Final paket release mezonlariga bog‘liq |
+| 35 | GitHub source-code handoff | IMPLEMENTED | PR #1, Bun lockfile, Next/Render konfiguratsiyasi, migratsiyalar va assetlar | Yakuniy SHA, fresh checkout build, CI natijasi, maxfiy kalitlar tekshiruvi |
 | 36 | Render production deploy | BLOCKED | www CNAME va production sitemap fingerprint edu-level.onrender.com bilan mos | Render production service ID, branch, deploy SHA, backup va ruxsat |
 
 To‘liq bajarilgan bandlar 3/36. Bular 05, 16, 33 bo‘yicha lokal qamrov. CI tasdiqlangan to‘liq bandlar 1/36. Production tasdiqlangan bandlar 0/36. Qisman bajarilgan bandlar to‘liq hisobga kiritilmagan.
