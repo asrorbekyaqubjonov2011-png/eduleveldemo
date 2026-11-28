@@ -12,12 +12,16 @@ async function login(ctx) {
   const email = `v9-${Date.now()}-${Math.floor(Math.random()*1e4)}@test.local`;
   const r = await ctx.request.post(BASE + '/api/auth/register', { data: { name: 'Vee', surname: 'Nine', identifier: email, email, password: 'Str0ng-Pass-123!', region: 'Toshkent' } });
   if (r.status() !== 200) throw new Error('register ' + r.status());
+  const session = await ctx.request.get(BASE + '/api/auth/me');
+  if (!session.ok() || (await session.json()).role !== 'student') {
+    throw new Error('Fixture registration did not establish a student session');
+  }
 }
 async function openExam(page, tag) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await appReady(page);
   const vp = page.viewportSize();
-  await page.getByText(/Kabinetga o.tish/).first().click({ timeout: 8000 });
+  await page.getByRole('button', { name: /Kabinetga o.tish/ }).click({ timeout: 8000 });
   await page.waitForTimeout(2000);
   if (vp.width < 1024) { await page.locator('main button').first().click({ timeout: 8000 }); await page.waitForTimeout(600); }
   await (vp.width < 1024 ? page.getByText('Levelni aniqlash').last() : page.getByText('Levelni aniqlash').first()).click({ timeout: 10000 });

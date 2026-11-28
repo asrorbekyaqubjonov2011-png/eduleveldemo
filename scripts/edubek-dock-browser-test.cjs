@@ -12,10 +12,9 @@ const check = (n, ok, x = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${n} ${x
     const page = await ctx.newPage();
     await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
     await appReady(page);
-    await page.waitForTimeout(600);
-    await page.locator('button[aria-label*="dubek" i]').first().click({ timeout: 5000 });
-    await page.waitForTimeout(800);
+    await page.getByRole('button', { name: /edubek/i }).first().click({ timeout: 5000 });
     const input = page.getByLabel('Edubek ga savol');
+    await input.waitFor({ state: 'visible' });
     check(name + ' dock has a text input', await input.isVisible());
     await input.fill('VIP tarif narxi qancha?');
     await input.press('Enter');
