@@ -9,8 +9,7 @@ services:
     repo: https://github.com/asrorbekyaqubjonov11-cmyk/EduLevel
     branch: ccr-9d9be064-f56xo5
     region: singapore
-    # The live instance is still on the free plan (see docs/DEPLOY.md); starter is the intended plan.
-    plan: starter
+    plan: free
     buildCommand: bun install && bun run build
     startCommand: bun run start
     healthCheckPath: /
@@ -25,7 +24,7 @@ services:
       # Postgres connection string of the EduLevel Supabase project (pooler, port 6543).
       - key: DATABASE_URL
         sync: false
-      # Gemini API key for all AI features (server-side only). Must be a billed key: the free tier runs out.
+      # Optional free-tier key. Runtime gates generation on confirmed free eligibility.
       - key: GEMINI_API_KEY
         sync: false
       # Image storage (Supabase Storage). Server-side only.

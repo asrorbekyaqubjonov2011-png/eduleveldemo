@@ -1,6 +1,6 @@
 # EduLevel deployment
 
-This file covers the production web service on Render: what runs, which environment variable names it needs, how to build and start it, and the release checklist. It contains no values. Keys, passwords and tokens live only in the Render dashboard, the Supabase project and the owner's password manager.
+This file records the historical Render service configuration. The connected workspace no longer exposes service `srv-dc0qserm8hqs73fc4bt0`, and this repository's PR branch is different from the branch listed below. Confirm the live service in its own Render workspace before any production release. Keys, passwords and tokens live only in the Render dashboard, the Supabase project and the owner's password manager.
 
 Last checked: 2026-11-23, after 11:04 UTC. Sources: the Render read-only API, the Supabase migration list, the production home page (GET) and a local build of this branch.
 
@@ -16,7 +16,7 @@ Last checked: 2026-11-23, after 11:04 UTC. Sources: the Render read-only API, th
 | Build command | `bun install && bun run build` |
 | Start command | `bun run start` (runs `next start`; Render sets `PORT`, 10000 on this service) |
 | Health check path | `/` |
-| Instance plan | free on the live service (see section 6). Intended plan: starter. |
+| Instance plan | free at the historical read-only check. The reference Blueprint now requests free. |
 | Database | Supabase project `qavdumqcxmauvgllplik`, pooled connection on port 6543 |
 
 `render.yaml` is a reference copy of this service. Nothing in this repository syncs it to Render, and no Blueprint link is known. Treat the dashboard as the source of truth.
@@ -33,7 +33,7 @@ Required:
 | `DATABASE_URL` | Postgres connection (`src/lib/db/pool.ts`) |
 | `OWNER_USERNAME` | owner login name; the code defaults to `jasurbek` (`src/lib/auth/guards.ts`) |
 | `OWNER_PASSWORD` | creates the owner login on the first start when none exists (`src/lib/db/bootstrap.ts`) |
-| `GEMINI_API_KEY` | all AI features. Must be a billed key (section 6). |
+| `GEMINI_API_KEY` | Optional. Generation requires explicit confirmation of free-tier eligibility through `GEMINI_FREE_TIER_CONFIRMED=1`. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | image storage (`src/lib/storage.ts`) |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot API (`src/lib/telegramBot.ts`). Without it the owner's bot endpoints answer 503. |
 | `TELEGRAM_WEBHOOK_SECRET` | sent to Telegram with `setWebhook` and checked on `POST /api/telegram/webhook` |
@@ -102,7 +102,7 @@ Notes:
 2. **Gate.** `bun run verify` exits 0.
 3. **Security test, local copy only.** `BASE_URL=<local copy> OWNER_SECRET=... OWNER_USER=... STUDENT_LOGIN=... STUDENT_PASSWORD=... bun run test:security`. No `FAIL` lines.
 4. **Migrations.** Apply new files in `supabase/migrations/` in file-name order, before the code that needs them goes live. Check the applied list for project `qavdumqcxmauvgllplik`. On 2026-11-23 it showed `0001_init` and `domain_schema_0002`. The app also runs its own idempotent DDL (`create table if not exists`, `add column if not exists`) for the `telegram_*` tables (`src/lib/telegramStore.ts`) and the `uploads` table (`src/lib/uploadStore.ts`); those need no manual step.
-5. **Environment check.** In the Render dashboard, confirm every required name in section 2 is set on `Edu-Level`, and that none of the names under "Must not be set" is present. Confirm the Gemini key belongs to a billed project. Never paste values into chat, commits or docs.
+5. **Environment check.** In the Render dashboard, confirm required names in section 2 and the free-tier eligibility of every enabled AI model. Never paste values into chat, commits or docs.
 6. **Deploy.** Auto-deploy starts on push. The deploy is finished when `list_deploys` shows `live` and the log shows `Your service is live`. Use a manual deploy only if auto-deploy did not start. Clear the build cache only for a build problem.
 7. **Smoke test.** GET only; agents do not log in to production. `https://edu-level.onrender.com/`, `/ingliz-tili-darslari`, `/ielts-tayyorgarlik`, `/cefr-tayyorgarlik`, `/robots.txt` and `/sitemap.xml` return 200. The first request after an idle period can take about 25 s on the free plan. Open `/` in a browser: no console errors. The owner logs in personally to check the owner panel.
 8. **Webhook re-set.** Needed after any change to `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` or the public URL. The owner runs "connect webhook" in the owner panel, which calls `POST /api/owner/telegram-webhook`. Check it with the same route and body `{"action":"info"}`, which only reads: `url` must be `https://edu-level.onrender.com/api/telegram/webhook` and `lastError` must be null.
@@ -128,8 +128,8 @@ Notes:
 
 | # | Item | Owner |
 |---|---|---|
-| 1 | Gemini key is on the free tier: attach a billed key to `GEMINI_API_KEY` | owner |
-| 2 | Plan: the live instance is free, `render.yaml` says starter | owner |
+| 1 | Confirm free-tier eligibility before enabling Gemini generation | owner |
+| 2 | Verify the live free instance still fits the Render memory limit | owner |
 | 3 | `output: 'standalone'` in `next.config.ts` causes the start warning: remove it | A9 |
 | 4 | Numeric API inputs reach bigint columns unvalidated (5e20 and 1e39 errors at 05:40 UTC): validate before the query | API owner |
 | 5 | `.env.example`: remove `APP_URL` (not read by the code) and list `OPENROUTER_API_KEY` as optional | not owned by A4 |
