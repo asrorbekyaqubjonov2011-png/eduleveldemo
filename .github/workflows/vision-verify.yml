@@ -65,6 +65,7 @@ jobs:
           select 'fixture-q-'||i,'v9-test',i,'She ___ to school every day.','["go","goes","going","gone"]',1
           from generate_series(1,8) i;
           SQL
+          psql -v ON_ERROR_STOP=1 -f scripts/fixtures/vision-listening.sql
       - name: Build actual Next.js app
         run: bun run build
       - name: Launch local services

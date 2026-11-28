@@ -121,6 +121,43 @@ for (const track of ['ielts', 'cefr', 'general']) {
   }
 }
 
+for (const [track, role, otherTrack] of [['ielts', 'student', 'cefr'], ['cefr', 'cefr', 'student']]) {
+  const testId = 'vision-listening-' + track;
+  const { data } = await request(role, 'GET', 'db/all');
+  const listening = data.listeningTests.find(row => row.id === testId);
+  assert.ok(listening, 'Load scripts/fixtures/vision-listening.sql into the disposable database');
+  const section = listening.sections[0];
+  const question = section.questions[0];
+  assert.equal(section.transcript, undefined);
+  assert.equal(question.correctAnswerIndex, undefined);
+  assert.equal(question.explanation, undefined);
+  await request(otherTrack, 'POST', 'exams/start', { testId }, 403);
+  const started = await request(role, 'POST', 'exams/start', { testId });
+  assert.deepEqual(started.transcripts, [{ sectionId: section.id, transcript: 'Meet me next to the school library.' }]);
+  const answers = { [question.id]: 0 };
+  await request(role, 'POST', 'exams/save', { testId, sessionId: started.session.id, answers });
+  const resumed = await request(role, 'POST', 'exams/start', { testId });
+  assert.equal(resumed.session.id, started.session.id);
+  assert.deepEqual(resumed.session.answers, answers);
+  const submitted = await request(role, 'POST', 'test-attempts', { testId, sessionId: started.session.id, answers });
+  assert.equal(submitted.result.correctCount, 1);
+  assert.equal(submitted.review[0].correctAnswerIndex, 0);
+  console.log('PASS ' + track + ' Listening transcript, track permission, resume and grading');
+}
+
+// CI intentionally has no AI credentials. The UI can distinguish unavailable service from a saved grade.
+for (const [route, input, records] of [
+  ['ai/grade-writing', { essayText: 'Schools can expand library access and offer quiet study spaces for students. Teachers can help classes select suitable reading material and plan practical activities that make progress visible over time.' }, 'writingSubmissions'],
+  ['ai/evaluate-speaking', { transcript: 'I study English in the library with a group of classmates after class.' }, 'speakingSubmissions'],
+]) {
+  const result = await request('student', 'POST', route, input, 503);
+  assert.equal(result.code, 'AI_NOT_CONFIGURED');
+  assert.ok(result.message);
+  const { data } = await request('student', 'GET', 'db/all');
+  assert.equal(data[records].length, 0);
+}
+console.log('PASS Writing and Speaking preserve submission history when AI is unavailable');
+
 const beforeEconomy = (await request('other', 'GET', 'auth/me')).user;
 const claims = await Promise.all([
   call('other', 'POST', 'student/economy', { action: 'daily_quest' }),

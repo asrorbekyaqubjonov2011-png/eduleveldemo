@@ -5,7 +5,7 @@
 | 01 | Bosh sahifa premium redesign | IMPLEMENTED | Yangi optik hero, CTA, SSR va Chromium ekranlari | Site Builder tahrirlash oqimi va oldin/keyin vizual qabul |
 | 02 | Apple-inspired Liquid Glass | IMPLEMENTED | Light/dark glass tokenlari, header, avatar va Mini App materiallari | Kontrast va barcha ichki komponentlar auditi |
 | 03 | Scrolling animatsiyalar | IMPLEMENTED | CSS scroll timeline, native fallback, reduced motion, sahifa almashuvi | Touch qurilmada kadr va scroll o‘lchovi |
-| 04 | Mobil va desktop | IMPLEMENTED | Chromiumda 9 o‘lchamda 27 ta public sahifa holati | Haqiqiy Android/Edge, barcha interaktiv holatlar |
+| 04 | Mobil va desktop | IMPLEMENTED | Chromium, WebKit va Firefoxda har engine uchun 27 public holat | Haqiqiy Android/Edge va qolgan interaktiv holatlar |
 | 05 | EduBek avatar | LOCAL_VERIFIED | SVG visor, tana va EduLevel identifikatsiyasi. Voice PNG | — |
 | 06 | EduBek mimika/lip-sync | IMPLEMENTED | Bosh, blink, playback va browser word-boundary | Haqiqiy mikrofon va fonema bo‘yicha sinov |
 | 07 | AI real streaming | IMPLEMENTED | Stream unit testlari va brauzer bekor qilish tekshiruvi | Jonli tasdiqlangan bepul provayderda matn oqimi |
@@ -14,8 +14,8 @@
 | 10 | 8 AI provider benchmark | BLOCKED | Sakkiz adapter sintetik kontrakt sinovidan o‘tdi | Hisob va model bo‘yicha bepul limit dalili |
 | 11 | Free-only mode | IMPLEMENTED | Gemini katalogi va Jev OpenRouter fail-closed | Hisob eligibility va barcha entry point auditi |
 | 12 | Ovozli suhbat | BLOCKED | Bekor qilish, barge-in va bosqichli timing | Qurilma mikrofon va real TTS bilan sinov |
-| 13 | IELTS | INVENTORIED | IELTS sahifalari va Reading grading lokal fixture | To‘rt skill bo‘yicha oxirigacha baholash |
-| 14 | CEFR | INVENTORIED | CEFR sahifalari va Reading grading lokal fixture | A1–B2 bo‘yicha yakuniy mashq va natijalar |
+| 13 | IELTS | INVENTORIED | IELTS Reading va Listening grading fixture, Writing/Speaking no-provider | Jonli Writing/Speaking bahosi hamda audio ijrosi |
+| 14 | CEFR | INVENTORIED | CEFR Reading va Listening grading fixture | A1–B2 bo‘yicha yakuniy mashq, audio va natijalar |
 | 15 | General English | INVENTORIED | Reading grading, mashq API va General English Placement fixture | Grammatika va lug‘at bo‘yicha to‘liq ssenariylar |
 | 16 | Placement Test | LOCAL_VERIFIED | CI 0b0ad7d. 39 API, XLSX/DOCX saralash va savollar o‘zgarganda resume | Production smoke release bilan bog‘liq |
 | 17 | Mock Test | IMPLEMENTED | Draft, sessiya va grading uchun fixture | Brauzer, expiry va ochiq/cheklangan testlar |

@@ -47,3 +47,7 @@ Locked install, TypeScript, 204 unit test va Next production build o‘tdi. ESLi
 [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46157471210) · [Integration va screenshot artifact](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46157471220)
 
 Lokal Placement brauzer sinovi 17 ta tekshiruvdan o‘tdi. Ikki yangi tekshiruv uzilgan javob yuborilishini qurilmada saqlash va retry orqali haqiqiy fixture APIga yozishni qamrab oldi. Grading validatsiyasining yangi unit testi bilan jami 208 test o‘tdi.
+
+Firefox qayta sinovda 9 viewport bo‘yicha landing, IELTS va Mini App uchun 27/27 HTTP 200 va overflow tekshiruvidan o‘tdi. Bu desktop runner emulyatsiyasi.
+
+Izolyatsiyalangan IELTS va CEFR Listening fixturelari transcriptni sessiyagacha berkitish, track ruxsati, autosave, resume va server bahosini tekshirdi. Writing/Speaking fixtureda provayder konfiguratsiyasi yo‘q holatda aniq xato qaytdi va submission tarixi o‘zgarmadi. Jonli model bahosi va real audio qamrovi ochiq.
