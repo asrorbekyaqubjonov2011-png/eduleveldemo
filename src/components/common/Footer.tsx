@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { useApp } from '../../context/AppContext';
 import { Phone, Send, ArrowUpRight, BookOpen, ShieldCheck, Mail } from 'lucide-react';
 import { EduLevelLogo } from './EduLevelLogo';
@@ -14,13 +15,13 @@ export const Footer: React.FC<{ onOpenOwnerModal?: () => void }> = ({ onOpenOwne
   const { db, setActiveSite } = useApp();
 
   const jump = (id: string) => {
-    if (id === 'top') {
-      setActiveSite('site1_open');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
     setActiveSite('site1_open');
-    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 160);
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+    setTimeout(() => {
+      const target = document.getElementById(id);
+      if (target) target.scrollIntoView({ behavior });
+      else window.scrollTo({ top: 0, behavior });
+    }, 160);
   };
 
   const linkClass =
@@ -46,16 +47,16 @@ export const Footer: React.FC<{ onOpenOwnerModal?: () => void }> = ({ onOpenOwne
           {/* Brand */}
           <div className="md:col-span-5">
             <EduLevelLogo size="md" variant="white" showSubtitle />
-            <p className="mt-5 max-w-sm text-[12.5px] leading-relaxed text-white/45">
+            <p className="mt-5 max-w-sm text-[12.5px] leading-relaxed text-white/65">
               O'zbekiston yoshlarini IELTS Academic & GT, CEFR Multilevel va xalqaro universitetlar
               talabaligiga tayyorlovchi 3-in-1 intellektual ta'lim ekotizimi.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2.5">
-              <a href={`tel:${db.teacherProfile.phone}`} className="inline-flex items-center gap-1.5 text-[12.5px] text-white/55 transition-colors hover:text-white">
+              {db.teacherProfile.phone?.trim() && <a href={`tel:${db.teacherProfile.phone.replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-1.5 text-[12.5px] text-white/55 transition-colors hover:text-white">
                 <Phone className="h-3.5 w-3.5 text-ember-400" />
                 <span className="font-mono">{db.teacherProfile.phone}</span>
-              </a>
+              </a>}
               <a
                 href={db.teacherProfile.telegram}
                 target="_blank"
@@ -70,22 +71,22 @@ export const Footer: React.FC<{ onOpenOwnerModal?: () => void }> = ({ onOpenOwne
 
           {/* Programs */}
           <div className="md:col-span-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65">
               Ta'lim dasturlari
             </h4>
             <ul className="mt-4 space-y-2.5">
               {[
-                { label: 'IELTS Band 8.0+ Masterclass', id: 'courses' },
-                { label: 'CEFR Multilevel C1 kursi', id: 'courses' },
-                { label: 'General English & Fluency', id: 'courses' },
+                { label: 'IELTS Band 8.0+ Masterclass', href: '/ielts-tayyorgarlik' },
+                { label: 'CEFR Multilevel C1 kursi', href: '/cefr-tayyorgarlik' },
+                { label: 'General English & Fluency', href: '/ingliz-tili-darslari' },
                 { label: 'Raqamli kutubxona', id: 'books' },
-                { label: '4-Skill Mock arenasi', id: 'mock-exam' },
+                { label: '4-Skill Mock arenasi', href: '/ielts/mock-test' },
                 { label: 'VIP tariflar', id: 'vip' },
-              ].map((l) => (
-                <li key={l.label}>
-                  <button onClick={() => jump(l.id)} className={linkClass}>
-                    {l.label}
-                  </button>
+              ].map(({ label, id, href }) => (
+                <li key={label}>
+                  {href
+                    ? <Link href={href} className={linkClass}>{label}</Link>
+                    : <button onClick={() => jump(id ?? 'top')} className={linkClass}>{label}</button>}
                 </li>
               ))}
             </ul>
@@ -93,41 +94,41 @@ export const Footer: React.FC<{ onOpenOwnerModal?: () => void }> = ({ onOpenOwne
 
           {/* Support */}
           <div className="md:col-span-4">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65">
               Yordam va aloqa
             </h4>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <button onClick={() => jump('teacher-bio')} className={linkClass}>
-                  <ShieldCheck className="h-3.5 w-3.5 text-white/35" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-white/65" />
                   Akademik standartlar
                 </button>
               </li>
               <li>
                 <button onClick={() => jump('contact')} className={linkClass}>
-                  <Mail className="h-3.5 w-3.5 text-white/35" />
+                  <Mail className="h-3.5 w-3.5 text-white/65" />
                   Savol va murojaat yuborish
                 </button>
               </li>
               <li>
                 <a href="https://ielts.org" target="_blank" rel="noreferrer" className={linkClass}>
-                  <BookOpen className="h-3.5 w-3.5 text-white/35" />
+                  <BookOpen className="h-3.5 w-3.5 text-white/65" />
                   Rasmiy IELTS portali
-                  <ArrowUpRight className="h-3 w-3 text-white/25" />
+                  <ArrowUpRight className="h-3 w-3 text-white/65" />
                 </a>
               </li>
               <li>
                 <a href="https://my.uzbmb.uz" target="_blank" rel="noreferrer" className={linkClass}>
-                  <BookOpen className="h-3.5 w-3.5 text-white/35" />
+                  <BookOpen className="h-3.5 w-3.5 text-white/65" />
                   UzBMB milliy sertifikat
-                  <ArrowUpRight className="h-3 w-3 text-white/25" />
+                  <ArrowUpRight className="h-3 w-3 text-white/65" />
                 </a>
               </li>
             </ul>
 
             <div className="mt-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3">
               <div className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400" />
-              <p className="text-[11px] leading-snug text-white/45">
+              <p className="text-[11px] leading-snug text-white/65">
                 Shaxsiy konsultatsiya uchun ustozga to'g'ridan-to'g'ri yozing.
               </p>
             </div>
@@ -135,10 +136,10 @@ export const Footer: React.FC<{ onOpenOwnerModal?: () => void }> = ({ onOpenOwne
         </div>
 
         <div className="mt-14 flex flex-col items-start justify-between gap-3 border-t border-white/8 pt-6 sm:flex-row sm:items-center">
-          <p className="text-[11px] text-white/30">
+          <p className="text-[11px] text-white/65">
             © {new Date().getFullYear()} Edu Level English Platform. Barcha huquqlar himoyalangan.
           </p>
-          <p className="text-[10.5px] text-white/25">
+          <p className="text-[10.5px] text-white/65">
             Cambridge Assessment English va CEFR xalqaro standartlari asosida.
           </p>
         </div>

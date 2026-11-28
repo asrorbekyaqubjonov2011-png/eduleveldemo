@@ -26,7 +26,11 @@ async function openExam(page, tag) {
   if (vp.width < 1024) { await page.locator('main button').first().click({ timeout: 8000 }); await page.waitForTimeout(600); }
   await (vp.width < 1024 ? page.getByText('Levelni aniqlash').last() : page.getByText('Levelni aniqlash').first()).click({ timeout: 10000 });
   await page.waitForTimeout(1500);
-  await page.getByRole('button', { name: /Boshlash|Davom ettirish/ }).first().click({ timeout: 8000 });
+  const catalog = await page.request.get(BASE + '/api/levels/tests');
+  const fixture = (await catalog.json()).tests?.find(test => test.id === 'v9-test');
+  if (!catalog.ok() || !fixture) throw new Error('Missing published v9-test fixture');
+  const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: fixture.title, exact: true }) });
+  await card.getByRole('button', { name: /Boshlash|Davom ettirish/ }).click({ timeout: 8000 });
   await page.waitForTimeout(400);
   const dlg = page.getByRole('dialog');
   await dlg.getByLabel('Ism').fill('Vee'); await dlg.getByLabel('Familiya').fill('Nine'); await dlg.getByLabel('Sinf').fill('9-A');

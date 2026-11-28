@@ -172,7 +172,7 @@ export function EduPage({
         <h2 className="text-xl font-bold">EduLevel saytida davom eting</h2>
         <p className="mt-2">Ro‘yxatdan o‘tib, darslar va mashqlarni saytda ko‘ring. Telegram botimiz orqali ham dars kodlari va yangiliklar bilan tanishing.</p>
         <p className="mt-4">
-          <Link href="/" className="inline-block rounded-full bg-orange-600 px-5 py-3 font-semibold text-white">EduLevel bosh sahifasi</Link>
+          <Link href="/" className="inline-block rounded-full bg-orange-700 px-5 py-3 font-semibold text-white hover:bg-orange-800">EduLevel bosh sahifasi</Link>
         </p>
       </section>
       {relatedPages.length ? (
