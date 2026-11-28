@@ -1,3 +1,5 @@
+import { isVerifiedFreeModel } from '../aiFreeOnly';
+
 /**
  * TypeSafe Jev 1.14 through OpenRouter's decisions endpoint. Jev does not write text: it answers typed
  * questions about a state and returns probabilities (noul = yes/no, choice, score). It is used here to
@@ -13,7 +15,7 @@ export interface NoulResult {
 }
 export interface JevFailure {
   ok: false;
-  reason: 'no_key' | 'timeout' | 'http' | 'shape';
+  reason: 'no_key' | 'free_unverified' | 'timeout' | 'http' | 'shape';
   status?: number;
   message: string;
   ms: number;
@@ -30,6 +32,10 @@ export async function askNoul(args: {
   const t0 = Date.now();
   const key = (process.env.OPENROUTER_API_KEY || '').trim();
   if (!key) return { ok: false, reason: 'no_key', message: 'OPENROUTER_API_KEY sozlanmagan.', ms: 0 };
+  // The decisions endpoint has no verified zero-price variant for this model.
+  if (!isVerifiedFreeModel('openrouter', JEV_MODEL)) {
+    return { ok: false, reason: 'free_unverified', message: 'Jev modeli bepul foydalanish uchun tasdiqlanmagan.', ms: 0 };
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), args.timeoutMs ?? 6000);
   try {
