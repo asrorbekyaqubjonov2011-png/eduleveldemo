@@ -167,9 +167,11 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
       const session = publicAuth ? null : await resolveSession(client, requestToken(req));
       const generationAtStart = snapshotGeneration;
       const fresh = isRead && snapshotCache && Date.now() - snapshotCache.at < SNAPSHOT_TTL_MS ? snapshotCache : null;
+      // db/all only projects a sanitized response. Keep the shared copy when there is no gift state to update.
+      const cachedProjection = fresh && req.method === 'GET' && req.nextUrl.pathname === '/api/db/all'
+        && !fresh.db.vipGift?.active && Object.keys(fresh.db.vipGiftApplied || {}).length === 0;
       let queryMs: number | undefined;
-      // Keep the cached baseline read-only. Each handler still gets its own mutable snapshot.
-      const db = fresh ? structuredClone(fresh.db) : await loadDatabase({
+      const db = fresh ? (cachedProjection ? fresh.db : structuredClone(fresh.db)) : await loadDatabase({
         query: async (sql, params) => {
           const began = performance.now();
           const result = await client.query(sql, params);
@@ -178,7 +180,7 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
         }
       });
       const baseline = fresh?.baseline ?? fingerprint(buildRows(db));
-      syncVipGift(db); // after the baseline, so what it changes is saved
+      if (!cachedProjection) syncVipGift(db); // after the baseline, so what it changes is saved
       setRoutingConfig(db.aiRouting as never); // the running server follows the owner's saved AI routing
       const loaded = Date.now();
       const afterCommit: Array<() => Promise<unknown>> = [];
@@ -186,7 +188,7 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
       const handled = Date.now();
       let touched = 0;
       if (response.status < 400) {
-        touched = await persistDatabase(isRead ? lazyTx : client, db, baseline);
+        if (!cachedProjection) touched = await persistDatabase(isRead ? lazyTx : client, db, baseline);
         if (inTx) await client.query('commit');
         if (afterCommit.length) after(async () => {
           const results = await Promise.allSettled(afterCommit.map(effect => effect()));

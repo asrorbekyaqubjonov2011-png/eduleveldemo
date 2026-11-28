@@ -28,7 +28,7 @@
 | 24 | Telegram Mini App | IMPLEMENTED | Mini App HMAC route va oltita browser shortcut | Haqiqiy Telegram ilovasi hamda link oqimi |
 | 25 | Supabase | INVENTORIED | 6 migration lokal, production read-only agregat | Production backup/restore va DB connection target |
 | 26 | Firebase | BLOCKED | Firebase token verifikatsiyasi kodda | Firebase Console va Google OAuth |
-| 27 | Server optimizatsiyasi | INVENTORIED | Fixture SSR, API va auth smoke | CPU, memory, oldin/keyin server profili |
+| 27 | Server optimizatsiyasi | IMPLEMENTED | `db/all` snapshot proyeksiyasi, lokal RSS, CPU va latency bo‘yicha oldin/keyin o‘lchov | Renderda uzluksiz ishlash profili |
 | 28 | DB pooling | IMPLEMENTED | DB pool local/TLS host tanlash aniqlashtirildi | Pooling metrikalari, tranzaksiya va deadline auditi |
 | 29 | Load test | IMPLEMENTED | 2240 so‘rov, 0 HTTP 503, health 200 va Next RSS o‘lchovi | RSS cho‘qqisi, Render profil va production sig‘imi |
 | 30 | SEO | INVENTORIED | Production canonical domen va sitemap HTTP 200 | Search Console va IndexNow |

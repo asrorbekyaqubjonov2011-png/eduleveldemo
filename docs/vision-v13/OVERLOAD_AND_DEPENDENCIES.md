@@ -23,3 +23,7 @@ O‘qish bosqichlarida kutilgan 24 ta Mini App 401 javobi bor. Har bir yugurishd
 Uzunroq mahalliy ramp jami 2240 so‘rov yubordi. 24 parallel mijoz bosqichida 1344 so‘rov, 0 ta 503, p95 183 ms, navbat p95 67 ms, pool p95 1 ms va sog‘liq holati 200. Butun rampda Next RSS cho‘qqisi 387 640 KiB. [Davomli sinov](evidence/sustained.json)
 
 Owner va moliya regressiyasidan keyingi lokal rampda 2240 so‘rovning hech biri 503 qaytarmadi. 24 mijoz bosqichida p95 208 ms, navbat p95 67 ms, pool p95 1 ms va Next CPU 6670 ms. 320 ta kutilgan Mini App 401 qaytdi, yakuniy health 200. O‘lchangan RSS cho‘qqisi 532 240 KiB bo‘ldi. Bu 512 MiB dan yuqori, shuning uchun bepul Render xotira chegarasi bo‘yicha alohida profil kerak. [O‘lchov](evidence/finance-load.json)
+
+`GET /api/db/all` yangi snapshotni klonlash va qayta fingerprint qilishni kesh mavjud bo‘lganda faqat VIP gift o‘zgarishi talab etilsa bajaradi. Owner, o‘quvchi va mehmon bir xil keshdan parallel javob olganda kutubxona ruxsatlari saqlanishi tekshirildi.
+
+Yangidan ishga tushirilgan ikki lokal jarayonda 2240 tadan so‘rov yuborildi. RSS cho‘qqisi 433 264 KiB dan 418 240 KiB gacha, 24 mijoz bosqichining p95 ko‘rsatkichi 250 ms dan 210 ms gacha tushdi. Shu bosqichda CPU vaqti 5410 ms dan 6710 ms gacha ko‘tarildi. Ikkala sinovda 503 soni 0 va health 200. Bu bitta oldin/keyin juftligi. Uzoq vaqt ishlagan instance xotirasi va production Render telemetriyasi hali tekshiriladi. [Oldin](evidence/projection-before.json) · [Keyin](evidence/projection-after.json)

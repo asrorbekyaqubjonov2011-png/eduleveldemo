@@ -11,4 +11,5 @@
 | AI | Sakkiz adapter kontrakti, cancel, free routing | Jonli free model dalili kerak |
 | Telegram | Fake transport va Mini App HMAC sinovi | Real Telegram test chat ochiq |
 | Admission | FIFO, timeout, abort, queue limit va aralash 24 mijoz | Render qamrovi ochiq |
+| Snapshot keshi | Bir xil keshda Owner, student va guest ruxsatlari, 2240 so‘rovli oldin/keyin | Uzoq ish va Render telemetriyasi ochiq |
 | Dependency | Frozen Bun lockfile va vulnerability audit | Jonli Google login ochiq |

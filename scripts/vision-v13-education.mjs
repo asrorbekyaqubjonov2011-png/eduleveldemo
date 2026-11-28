@@ -39,8 +39,12 @@ async function catalog(role) {
 }
 assert.equal(book.track, 'ielts');
 assert.equal(book.requiredVIP, 'start');
-assert.deepEqual((await catalog('student'))[0].pages, []);
-assert.equal((await catalog('guest'))[0].pdfUrl, '');
+await catalog('guest'); // Populate the same cache used by all three role projections.
+const [ownerCatalog, studentCatalog, guestCatalog] = await Promise.all(['owner', 'student', 'guest'].map(catalog));
+assert.equal(ownerCatalog[0].pages[0].content, 'Fixture private page');
+assert.deepEqual(studentCatalog[0].pages, []);
+assert.equal(guestCatalog[0].pdfUrl, '');
+assert.equal((await catalog('owner'))[0].pdfUrl, url);
 await request('guest', 'GET', storedPath, undefined, 404);
 await request('student', 'PUT', 'books/' + book.id, { requiredVIP: 'free' }, 403);
 await request('owner', 'PUT', 'books/' + book.id, { requiredVIP: 'free' });
