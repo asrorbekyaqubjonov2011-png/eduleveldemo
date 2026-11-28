@@ -23,3 +23,10 @@
 Locked install, TypeScript, 204 unit test va Next production build o‘tdi. ESLint 0 error va 88 warning ko‘rsatdi. 48 smoke, 10 Dock, 15 Placement browser, 34 Placement API, 18 Telegram simulyatsiya va 2 education API ssenariysi o‘tdi. Yangi EduBek testida qo‘lda Tinglash, auto voice o‘chiq holati va ovozli suhbatga o‘tganda bekor qilish tasdiqlandi. Audio vositalari browser fixture bilan almashtirilgan.
 
 [Yuklama va dependency](OVERLOAD_AND_DEPENDENCIES.md)
+
+- `524c192` commitida ikkala GitHub Actions workflow muvaffaqiyatli yakunlandi.
+- Kengaytirilgan lokal sinovda IELTS, CEFR va General English Reading bo‘yicha yaratish, o‘z yo‘nalishida kirish, javob kalitini berkitish va server grading o‘tdi. Bir o‘quvchining parallel Edu Coin mukofot so‘rovlarida ledgerga bir marta yozildi.
+- Owner Forms 19, DB 12, mashqlar 20, darslar 15, yangiliklar 24 va ikki ketma-ket promo sinovining har biri 15 ta tekshiruvdan o‘tdi.
+- Mobil va desktopda reduced-motion parametrini sahifani qayta yuklamasdan almashtirish counter animatsiyasini to‘xtatdi va qiymatni ko‘rsatdi. TypeScript, 204 unit test va build o‘tdi. ESLint 85 ogohlantirish va 0 xato qaytardi.
+
+[Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46137497928) · [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46137497905)

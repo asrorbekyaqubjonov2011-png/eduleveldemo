@@ -129,6 +129,23 @@ async function miniApp(browser) {
   } finally { await context.close(); }
 }
 
+async function motion(browser) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+  try {
+    const data = await (await context.request.get(new URL('/api/db/all', base).href)).json();
+    const experience = data.data.teacherProfile.experienceYears;
+    assert.ok(experience > 0, 'Fixture teacher has an experience counter');
+    const page = await context.newPage();
+    await page.goto(base.href);
+    const counter = page.locator('#teacher-bio span').filter({ hasText: /\+ yil$/ });
+    await counter.waitFor({ state: 'attached' });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.getByText(experience + '+ yil', { exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await counter.textContent(), experience + '+ yil');
+    console.log('PASS changing reduced motion renders the final count');
+  } finally { await context.close(); }
+}
+
 async function navigation(browser) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   try {
@@ -168,6 +185,7 @@ async function navigation(browser) {
   const browser = await chromium.launch();
   try {
     await navigation(browser);
+    await motion(browser);
     await miniApp(browser);
     await voice(browser);
   } finally { await browser.close(); }

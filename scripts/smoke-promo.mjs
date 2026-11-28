@@ -19,7 +19,7 @@ async function call(method, path, body, cookie) {
   return { status: res.status, json: await res.json().catch(() => ({})), cookie: set.match(/el_session=([^;]+)/)?.[1] };
 }
 
-const owner = await call('POST', 'auth/login', { loginInput: 'jasurbek', password: OWNER_PASSWORD });
+const owner = await call('POST', 'auth/login', { loginInput: process.env.OWNER_USERNAME || 'jasurbek', password: OWNER_PASSWORD });
 check('owner logs in', owner.status === 200 && !!owner.cookie);
 const oc = owner.cookie;
 
@@ -28,10 +28,12 @@ check('student registers', reg.status === 200 && !!reg.cookie, reg.json.message)
 const sc = reg.cookie;
 const me = (await call('GET', 'auth/me', null, sc)).json.user;
 
-const dep = await call('POST', 'deposits/request', { amount: 1000000, method: 'card', note: 'promo test', receiptUrl: '/receipt-test.png' }, sc);
+const dep = await call('POST', 'deposits/request', { amount: 1000000, method: 'card', note: 'promo test', receiptUrl: '/receipt-test-' + code + '.png' }, sc);
 const depId = dep.json.transaction?.id;
-check('deposit requested', dep.status === 200 && !!depId);
-await call('POST', `owner/deposits/approve/${depId}`, {}, oc);
+check('deposit requested', dep.status === 200 && !!depId, dep.json.message);
+if (!depId) process.exit(1);
+const approved = await call('POST', `owner/deposits/approve/${depId}`, {}, oc);
+check('owner approves the deposit', approved.status === 200, approved.json.message);
 
 let r = await call('POST', 'owner/promo-codes', { code: 'a', planDiscounts: { start: 10 }, maxUses: 0 }, oc);
 check('too short code is rejected', r.status === 400, r.json.message);

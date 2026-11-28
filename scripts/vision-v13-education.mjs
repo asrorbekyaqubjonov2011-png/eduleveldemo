@@ -75,3 +75,61 @@ assert.equal((await request('student', 'POST', 'test-attempts', submission)).dup
 await request('other', 'POST', 'exams/review', { attemptId: finished.attempt.id }, 403);
 assert.equal((await request('student', 'POST', 'exams/review', { attemptId: finished.attempt.id })).review[0].correctAnswerIndex, 1);
 console.log('PASS mock draft visibility, answer protection, resume, timer, grading, duplicate and review');
+
+for (const track of ['ielts', 'cefr', 'general']) {
+  const role = track === 'ielts' ? 'student' : track;
+  if (track !== 'ielts') {
+    const email = randomUUID() + '@test.local';
+    await request(role, 'POST', 'auth/register', { name: 'Reading', surname: 'Fixture', email, identifier: email, password: 'OnlyFixture123!', track });
+  }
+  const reading = {
+    title: 'Reading fixture for ' + track,
+    track,
+    durationMinutes: 5,
+    passages: [{
+      id: randomUUID(),
+      title: 'School routine',
+      passageNumber: 1,
+      paragraphs: [{ label: 'A', text: 'Nila studies English in the library.' }],
+      questions: [{
+        id: randomUUID(),
+        questionNumber: 1,
+        prompt: 'Nila studies English in the ___.',
+        type: 'open_cloze',
+        correctAnswer: 'library',
+        evidenceQuote: 'Nila studies English in the library.'
+      }]
+    }]
+  };
+  const { readingTest } = await request('owner', 'POST', 'reading-tests', reading);
+  try {
+    const { data } = await request(role, 'GET', 'db/all');
+    const question = data.readingTests.find(row => row.id === readingTest.id).passages[0].questions[0];
+    assert.equal(question.correctAnswer, undefined);
+    assert.equal(question.evidenceQuote, undefined);
+    if (track !== 'ielts') await request('student', 'POST', 'exams/start', { testId: readingTest.id }, 403);
+    const { session } = await request(role, 'POST', 'exams/start', { testId: readingTest.id });
+    const result = await request(role, 'POST', 'test-attempts', {
+      testId: readingTest.id, sessionId: session.id, answers: { [question.id]: 'library' }
+    });
+    assert.equal(result.result.correctCount, 1);
+    assert.equal(result.result.percentage, 100);
+    assert.equal(result.review[0].correctAnswer, 'library');
+    console.log('PASS ' + track + ' Reading create, snapshot, access and grading');
+  } finally {
+    await request('owner', 'DELETE', 'reading-tests/' + readingTest.id);
+  }
+}
+
+const beforeEconomy = (await request('other', 'GET', 'auth/me')).user;
+const claims = await Promise.all([
+  call('other', 'POST', 'student/economy', { action: 'daily_quest' }),
+  call('other', 'POST', 'student/economy', { action: 'daily_quest' })
+]);
+assert.deepEqual(claims.map(claim => claim.status).sort(), [200, 400]);
+const reward = claims.find(claim => claim.status === 200).data.reward;
+const afterEconomy = (await request('other', 'GET', 'auth/me')).user;
+for (const ledger of ['xp', 'points', 'coins']) {
+  assert.equal((afterEconomy[ledger] || 0) - (beforeEconomy[ledger] || 0), reward[ledger]);
+}
+console.log('PASS daily reward is credited to the student ledger once under concurrent requests');
