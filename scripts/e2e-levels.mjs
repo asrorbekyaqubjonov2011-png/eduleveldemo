@@ -21,6 +21,11 @@ let fails = 0;
 const check = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} ${name} ${extra}`); if (!cond) fails++; };
 const j = async (url, init = {}) => { const r = await fetch(BASE + url, init); const b = await r.json().catch(() => ({})); return { s: r.status, b, r }; };
 
+const invalidRules = await j('/api/levels/owner', {
+  method: 'POST', headers: O, body: JSON.stringify({ title: 'Invalid grading fixture', gradingRules: [null] })
+});
+check('invalid grading entry returns a validation error', invalidRules.s === 400 && invalidRules.b.success === false);
+
 // 1. owner creates an open test, adds questions, publishes
 const t = await j('/api/levels/owner', { method: 'POST', headers: O, body: JSON.stringify({ kind: 'test', title: 'E2E test', access: 'open', timeLimitSeconds: 300, attemptsAllowed: 2, maxViolations: 2, gradingRules: [{ min: 0, max: 49, level: 'A2' }, { min: 50, max: 100, level: 'B1', certificate: true }], certificateEnabled: true }) });
 check('owner creates test', t.s === 201 && t.b.id, JSON.stringify(t.s));

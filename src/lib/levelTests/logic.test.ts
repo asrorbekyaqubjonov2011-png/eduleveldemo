@@ -51,6 +51,11 @@ describe('validateGradingRules', () => {
   test('accepts clean non-overlapping rules', () => {
     assert.equal(validateGradingRules([{ min: 0, max: 50, level: 'A2' }, { min: 51, max: 100, level: 'B1' }]).ok, true);
   });
+  test('rejects empty and non-object rule entries without throwing', () => {
+    for (const entry of [null, false, [], 'A2']) {
+      assert.equal(validateGradingRules([entry]).ok, false);
+    }
+  });
   test('rejects overlaps, bad ranges, empty level names and non-arrays', () => {
     assert.equal(validateGradingRules([{ min: 0, max: 50, level: 'A' }, { min: 50, max: 100, level: 'B' }]).ok, false);
     assert.equal(validateGradingRules([{ min: 60, max: 40, level: 'A' }]).ok, false);

@@ -51,7 +51,24 @@ async function openExam(page, tag) {
   check('header shows fullscreen state', await page.getByText('To‘liq ekran', { exact: true }).first().isVisible());
   await shot(page, 'd-04-exam');
   // answer Q1, flag Q2, skip Q3
+  // Interrupt the first autosave, then let the retry reach the real isolated API.
+  const attemptRoute = /\/api\/levels\/attempts\/[^/?]+$/;
+  const failPut = (route) => route.request().method() === 'PUT' ? route.abort('internetdisconnected') : route.continue();
+  await page.route(attemptRoute, failPut);
   await page.getByRole('radio', { name: /goes/ }).click();
+  await page.getByText(/Javob hali serverda saqlanmadi/).waitFor();
+  check('interrupted autosave persists an answer on this device', await page.evaluate(() =>
+    Object.keys(localStorage).some(key => key.startsWith('lvl-pending-') && Object.keys(JSON.parse(localStorage.getItem(key))).length > 0)
+  ));
+  const retry = page.waitForResponse(response =>
+    attemptRoute.test(response.url()) && response.request().method() === 'PUT' && response.ok()
+  );
+  await page.unroute(attemptRoute, failPut);
+  const saved = await retry;
+  const sentAnswer = saved.request().postDataJSON();
+  const state = await (await ctx.request.get(saved.url())).json();
+  check('autosave retry restores the answer on the server', state.answers?.[sentAnswer.questionId] === sentAnswer.choice);
+
   await page.getByRole('button', { name: /Keyingi savol/ }).click();
   await page.getByRole('button', { name: /Keyin ko.rish/ }).click();
   await page.getByRole('button', { name: /Keyingi savol/ }).click();

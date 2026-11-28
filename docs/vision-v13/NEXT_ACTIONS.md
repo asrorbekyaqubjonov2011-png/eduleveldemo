@@ -5,4 +5,4 @@
 3. VIP moliya so‘rovlari va DB snapshot yukini profiling qiling. Yangi navbat va pool metrikalari bilan davomli yuk, sovuq start va Render xotira profilini tekshiring.
 4. Kutubxonaning oldingi tashqi public PDF manzillarini egasi bilan inventardan tekshiring. Zarur bo‘lsa qaytariladigan private storage ko‘chirishni rehearsal qiling.
 5. Haqiqiy mikrofon, Android Chrome, Edge, jonli Telegram, Firebase va tasdiqlangan bepul provider dalillarini to‘ldiring.
-6. Release gates bo‘yicha Render, backup va rollbackni tasdiqlang. Bir xil sharoitda ekranlar va yakuniy ZIPni release SHA bilan oling.
+6. Release gates bo‘yicha Render, backup va rollbackni tasdiqlang. Release SHA uchun fresh GitHub checkout, CI va kerakli ekran dalillarini tasdiqlang.

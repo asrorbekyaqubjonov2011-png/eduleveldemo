@@ -36,3 +36,14 @@ Locked install, TypeScript, 204 unit test va Next production build o‘tdi. ESLi
 - 100 public sahifa hamda 27 Owner va 13 Student tab 3 o‘lchamda ochildi. 420 ta full-page tasvir va alohida interaktiv holatlar mavjud.
 
 [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46138393778) · [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46138393792)
+
+
+## Placement va GitHub handoff
+
+- `0b0ad7d` kodida ikkala GitHub Actions run muvaffaqiyatli. Owner brauzer testi standart barcha urinishlar eksportini, saralangan Excelni va 390 px mobil o‘lchamini tekshirdi. Kengaytirilgan API suite 39 ta tekshiruvdan o‘tdi.
+- XLSX va DOCX saralash hisob IDsi bo‘yicha ishlaydi. Hisob IDsi yo‘q yoki balli tasdiqlanmagan yozuvlar tekshirish uchun saqlanadi. Cheklangan Git pattern tekshiruvida private key, GitHub token, OpenAI token yoki Google API key formatlariga mos tracked kod topilmadi.
+- Test boshlanganidan keyin qo‘shilgan savol mavjud urinish bahosiga kirmasligi va resume avvalgi javobni saqlashi tekshirildi.
+
+[Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46157471210) · [Integration va screenshot artifact](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46157471220)
+
+Lokal Placement brauzer sinovi 17 ta tekshiruvdan o‘tdi. Ikki yangi tekshiruv uzilgan javob yuborilishini qurilmada saqlash va retry orqali haqiqiy fixture APIga yozishni qamrab oldi. Grading validatsiyasining yangi unit testi bilan jami 208 test o‘tdi.

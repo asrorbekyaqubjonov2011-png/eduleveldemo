@@ -17,7 +17,7 @@
 | 13 | IELTS | INVENTORIED | IELTS sahifalari va Reading grading lokal fixture | To‘rt skill bo‘yicha oxirigacha baholash |
 | 14 | CEFR | INVENTORIED | CEFR sahifalari va Reading grading lokal fixture | A1–B2 bo‘yicha yakuniy mashq va natijalar |
 | 15 | General English | INVENTORIED | Reading grading, mashq API va General English Placement fixture | Grammatika va lug‘at bo‘yicha to‘liq ssenariylar |
-| 16 | Placement Test | LOCAL_VERIFIED | 15 brauzer va 34 API tekshiruvi. XLSX va DOCX | Production smoke release bilan bog‘liq |
+| 16 | Placement Test | LOCAL_VERIFIED | CI 0b0ad7d. 39 API, XLSX/DOCX saralash va savollar o‘zgarganda resume | Production smoke release bilan bog‘liq |
 | 17 | Mock Test | IMPLEMENTED | Draft, sessiya va grading uchun fixture | Brauzer, expiry va ochiq/cheklangan testlar |
 | 18 | Kutubxona | IMPLEMENTED | Tarifni joyida yangilash va serverda kontentni cheklash | Tarixiy tashqi public PDF URL va to‘liq brauzer oqimi |
 | 19 | Video darslar | INVENTORIED | 15 lesson API tekshiruvi | Haqiqiy YouTube va video playback |
@@ -36,7 +36,7 @@
 | 32 | Regression tests | LOCAL_VERIFIED | Baseline regressiya suite va yangi fixture testlari | Release oldidan to‘liq qamrov va CI |
 | 33 | Production build | CI_VERIFIED | TypeScript, ESLint, unit va Next.js build | Production release SHA uchun qayta tekshiruv |
 | 34 | Screenshotlar | IMPLEMENTED | Public va protected desktop/tablet/mobile PNG | Qolgan modallar, to‘liq bir xil before/after va real qurilmalar |
-| 35 | GitHub source-code handoff | IMPLEMENTED | PR #1, Bun lockfile, Next/Render konfiguratsiyasi, migratsiyalar va assetlar | Yakuniy SHA, fresh checkout build, CI natijasi, maxfiy kalitlar tekshiruvi |
+| 35 | GitHub source-code handoff | CI_VERIFIED | 0b0ad7d checkout, frozen install va GitHub Actions build. Lockfile, konfiguratsiya, migratsiya va assetlar repoda | Yakuniy release SHA uchun qayta tekshirish |
 | 36 | Render production deploy | BLOCKED | www CNAME va production sitemap fingerprint edu-level.onrender.com bilan mos | Render production service ID, branch, deploy SHA, backup va ruxsat |
 
-To‘liq bajarilgan bandlar 3/36. Bular 05, 16, 33 bo‘yicha lokal qamrov. CI tasdiqlangan to‘liq bandlar 1/36. Production tasdiqlangan bandlar 0/36. Qisman bajarilgan bandlar to‘liq hisobga kiritilmagan.
+Jadvaldagi status tegishli dalil darajasini bildiradi. Hozirgi checkout va CI dalillari yakuniy release SHA uchun qayta tekshiriladi. Production tasdiqlangan bandlar 0/36.
