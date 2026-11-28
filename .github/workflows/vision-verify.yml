@@ -102,11 +102,11 @@ jobs:
       - name: Telegram simulated API
         if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         run: node scripts/telegram-bot-test.mjs
-      - name: Owner forms, persistence, lessons, exercises, news and promos
+      - name: Owner forms, SEO, persistence, lessons, exercises, news and promos
         if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
         shell: bash
         run: |
-          for suite in owner-forms-test smoke-db smoke-exercises smoke-lesson smoke-news smoke-promo; do
+          for suite in owner-forms-test seo-manager-test smoke-db smoke-exercises smoke-lesson smoke-news smoke-promo; do
             node "scripts/${suite}.mjs" | tee "vision-smoke-results/${suite}.log"
           done
       - name: Upload test evidence

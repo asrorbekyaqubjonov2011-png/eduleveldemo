@@ -9,3 +9,4 @@
 - Firebase sertifikat yuklashiga 3,5 soniya timeout qo‘yildi va parallel so‘rovlar bitta sertifikat yuklashni kutadi. Noto‘g‘ri audience va issuer tarmoqqa chiqishdan oldin rad etiladi.
 - Placement hisobotida hisob IDsi asosida saralangan XLSX va DOCX, tayinlangan savollar bo‘yicha baholash, autosave retry va yakuniy expiry tuzatildi.
 - Sayt va Telegram depozit tasdig‘i bitta tranzaksiya qulfidan foydalanadi. Owner panel balansni saqlash oldidan ko‘rilgan summani tekshiradi. Xato va muvaffaqiyat holatlari alohida ko‘rsatiladi.
+- IndexNow preview domenidan yuborilmaydi. SEO sahifa muvaffaqiyatli saqlangandan keyingina xabar beriladi. SEO manager sinovi CI ga qo‘shildi.

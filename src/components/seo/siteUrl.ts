@@ -3,20 +3,23 @@
  * Canonical production host is https://edulevel.uz; NEXT_PUBLIC_SITE_URL overrides it.
  * Invalid values fall back to the canonical host so canonicals never point at junk.
  */
-const CANONICAL = 'https://edulevel.uz';
+export const CANONICAL_SITE_URL = 'https://edulevel.uz';
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 export function getSiteUrl(): string {
   const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   try {
     const u = new URL(raw);
-    if (u.protocol !== 'https:' && u.hostname !== 'localhost') return CANONICAL;
+    if (u.protocol !== 'https:' && !(u.protocol === 'http:' && LOCAL_HOSTS.has(u.hostname))) {
+      return CANONICAL_SITE_URL;
+    }
     return u.origin;
   } catch {
-    return CANONICAL;
+    return CANONICAL_SITE_URL;
   }
 }
 
 /** Preview and non-canonical deployments must not be indexed. */
 export function isIndexableDeployment(): boolean {
-  return getSiteUrl() === CANONICAL || process.env.ALLOW_INDEX === '1';
+  return getSiteUrl() === CANONICAL_SITE_URL || process.env.ALLOW_INDEX === '1';
 }

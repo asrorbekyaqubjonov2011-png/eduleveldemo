@@ -31,12 +31,12 @@
 | 27 | Server optimizatsiyasi | IMPLEMENTED | `db/all` snapshot proyeksiyasi, lokal RSS, CPU va latency bo‘yicha oldin/keyin o‘lchov | Renderda uzluksiz ishlash profili |
 | 28 | DB pooling | IMPLEMENTED | DB pool local/TLS host tanlash aniqlashtirildi | Pooling metrikalari, tranzaksiya va deadline auditi |
 | 29 | Load test | IMPLEMENTED | 2240 so‘rov, 0 HTTP 503, health 200 va Next RSS o‘lchovi | RSS cho‘qqisi, Render profil va production sig‘imi |
-| 30 | SEO | INVENTORIED | Production canonical domen va sitemap HTTP 200 | Search Console va IndexNow |
+| 30 | SEO | IMPLEMENTED | Canonical sitemap, robots va lokal preview IndexNow cheklovi unit testi | CI SEO manager, Search Console va production indeks dalili |
 | 31 | Har bir tugma/funksiya | INVENTORIED | 100 public route va 40 role/tab ssenariysi | Har bir tugma, role va mutatsiya |
 | 32 | Regression tests | LOCAL_VERIFIED | Baseline regressiya suite va yangi fixture testlari | Release oldidan to‘liq qamrov va CI |
 | 33 | Production build | CI_VERIFIED | TypeScript, ESLint, unit va Next.js build | Production release SHA uchun qayta tekshiruv |
 | 34 | Screenshotlar | IMPLEMENTED | Public va protected desktop/tablet/mobile PNG | Qolgan modallar, to‘liq bir xil before/after va real qurilmalar |
-| 35 | GitHub source-code handoff | CI_VERIFIED | e143d16 ikki CI tekshiruvi, lokal detached checkout build, lockfile, konfiguratsiya, migratsiya va assetlar | Yakuniy release SHA uchun qayta tekshirish |
+| 35 | GitHub source-code handoff | CI_VERIFIED | 3fe5c79 ikki CI tekshiruvi, lokal detached checkout build, lockfile, konfiguratsiya, migratsiya va assetlar | Yakuniy release SHA uchun qayta tekshirish |
 | 36 | Render production deploy | BLOCKED | www CNAME va production sitemap fingerprint edu-level.onrender.com bilan mos | Render production service ID, branch, deploy SHA, backup va ruxsat |
 
 Jadvaldagi status tegishli dalil darajasini bildiradi. Hozirgi checkout va CI dalillari yakuniy release SHA uchun qayta tekshiriladi. Production tasdiqlangan bandlar 0/36.

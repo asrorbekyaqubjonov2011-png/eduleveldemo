@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { getPool } from './db/pool';
+import { CANONICAL_SITE_URL } from '../components/seo/siteUrl';
 
 /**
  * IndexNow (free): tells participating search engines (Bing, Yandex, ...) that a URL is new, changed or removed.
@@ -89,6 +90,9 @@ export interface SubmitResult { sent: number; ok: boolean; status: number | null
 
 /** Sends URLs once (one request, at most one per minute). Failed URLs stay in the retry list. */
 export async function submitUrls(host: string, siteUrl: string, urls: string[], reason: string, lastmods: Record<string, string> = {}, fetchImpl: typeof fetch = fetch): Promise<SubmitResult> {
+  if (siteUrl !== CANONICAL_SITE_URL || host !== new URL(CANONICAL_SITE_URL).hostname) {
+    return { sent: 0, ok: false, status: null, message: 'IndexNow faqat edulevel.uz domenida ishlaydi.', skipped: 'origin' };
+  }
   const list = normalizeUrls(urls, host);
   if (!list.length) return { sent: 0, ok: true, status: null, message: 'Yuboriladigan yangi URL yo‘q', skipped: 'empty' };
   const state = await loadState();
@@ -119,12 +123,8 @@ export async function submitUrls(host: string, siteUrl: string, urls: string[], 
 }
 
 /** Best-effort: tells IndexNow about one changed or removed owner page. Never throws, never blocks the owner's save. */
-export function notifyIndexNow(path: string, siteUrl: string, reason: string): void {
-  try {
-    const host = new URL(siteUrl).hostname;
-    if (host === 'localhost') return;
-    void submitUrls(host, siteUrl, [siteUrl + (path.startsWith('/') ? path : '/' + path)], reason).catch(() => undefined);
-  } catch {
-    /* ignore */
-  }
+export async function notifyIndexNow(path: string, siteUrl: string, reason: string): Promise<void> {
+  if (siteUrl !== CANONICAL_SITE_URL) return;
+  const host = new URL(siteUrl).hostname;
+  await submitUrls(host, siteUrl, [siteUrl + (path.startsWith('/') ? path : '/' + path)], reason).catch(() => undefined);
 }

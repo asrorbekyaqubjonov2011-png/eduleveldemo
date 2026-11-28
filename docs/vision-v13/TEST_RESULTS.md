@@ -68,3 +68,5 @@ Oxirgi muddati tugagan urinish ochilganda baho tranzaksiyada saqlanadi. Keyingi 
 
 - Owner paneldagi bir vaqtdagi manual balans so‘rovlaridan faqat bittasi yozildi. Chromiumda haqiqiy fixture API desktopda 409 qaytardi, panel yangi balansni oldi va mobil o‘lchamda qayta yuborilgan amal muvaffaqiyatli o‘tdi. Desktop ogohlantirish va mobil tasdiq PNG dalillari integration artifact tarkibida.
 - 210 unit, 12 ta education/API ssenariysi, 19 Owner Forms, 12 DB, 20 mashqlar, 15 darslar, 24 yangilik/VIP gift va 15 promo tekshiruvi lokal o‘tdi. ESLint 0 xato va 84 ogohlantirish. TypeScript va production build o‘tdi.
+
+Snapshot keshining `3fe5c79` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46160372219) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46160372209) o‘tdi. SEO preview uchun IndexNow tarmoq va bazaga chiqmasligi unit testda tekshirildi. SEO manager ssenariysi navbatdagi CI ga qo‘shildi.

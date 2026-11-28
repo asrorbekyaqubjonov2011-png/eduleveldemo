@@ -14,6 +14,10 @@ const O = cookieOf(ownerRes);
 const email = `seo-${Date.now()}@test.local`;
 const S = cookieOf(await fetch(base + '/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Seo', surname: 'Test', identifier: email, email, password: 'Str0ng-Pass-123!', region: 'Toshkent' }) }));
 if (!O || !S) { console.error('sign-in failed (set OWNER_PASSWORD)'); process.exit(1); }
+if (process.env.NEXT_PUBLIC_SITE_URL !== 'https://edulevel.uz') {
+  const indexNow = await call(O, 'POST', '/api/owner/indexnow', { action: 'urls', urls: ['https://edulevel.uz/ielts'] });
+  check('preview refuses IndexNow submissions', indexNow.s === 409 && indexNow.b.code === 'INDEXNOW_PREVIEW');
+}
 
 const slug = `blog/test-${Date.now().toString(36)}`;
 const long = (n, tag) => Array.from({ length: n }, (_, i) => `${tag}${i}`).join(' ');
@@ -47,7 +51,8 @@ check('a complete, reviewed page publishes', pub.s === 200, String(pub.s) + ' ' 
 const html = await (await fetch(`${base}/${slug}`)).text();
 check('the published page is public with one H1', html.includes(`Test sahifa H1 ${slug}`) && (html.match(/<h1/g) || []).length === 1);
 check('FAQPage data is in the page', html.includes('FAQPage'));
-check('the page is indexable', !/noindex/.test(html));
+const canonicalDeployment = process.env.NEXT_PUBLIC_SITE_URL === 'https://edulevel.uz';
+check('the page indexing matches the deployment', canonicalDeployment ? !/noindex/.test(html) : /noindex/.test(html));
 const sm = await (await fetch(`${base}/sitemap.xml`)).text();
 check('the sitemap lists it', sm.includes(`/${slug}</loc>`));
 check('the owner link appears in the navigation of other pages', (await (await fetch(`${base}/ielts`)).text()).includes(`href="/${slug}"`));
