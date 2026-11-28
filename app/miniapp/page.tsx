@@ -1,6 +1,8 @@
 'use client';
 import Script from 'next/script';
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
+import { useState } from 'react';
 
 /**
  * Telegram Mini App: a light launcher inside Telegram. It shows no personal data and needs no sign-in; every shortcut
@@ -19,36 +21,40 @@ interface TgWebApp {
   ready?: () => void;
   expand?: () => void;
   colorScheme?: 'light' | 'dark';
+  initData?: string;
 }
 
 export default function MiniAppPage() {
   const [dark, setDark] = useState(false);
+  const [verified, setVerified] = useState(false);
   const init = () => {
     const tg = (window as unknown as { Telegram?: { WebApp?: TgWebApp } }).Telegram?.WebApp;
     if (!tg) return;
     tg.ready?.();
     tg.expand?.();
     setDark(tg.colorScheme === 'dark');
+    if (tg.initData) {
+      void fetch('/api/telegram/miniapp', {
+        method: 'POST',
+        headers: { 'x-telegram-init-data': tg.initData },
+      }).then((response) => setVerified(response.status === 204)).catch(() => setVerified(false));
+    }
   };
-  useEffect(() => {
-    init();
-  }, []);
-  const bg = dark ? '#0f1115' : '#f5f6f8';
-  const card = dark ? '#1a1d24' : '#ffffff';
-  const fg = dark ? '#f2f3f5' : '#111317';
-  const sub = dark ? '#a3a8b3' : '#5b616e';
   return (
-    <main style={{ minHeight: '100vh', background: bg, color: fg, padding: '20px 16px 32px', fontFamily: 'system-ui, sans-serif' }}>
-      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" onLoad={init} />
-      <h1 style={{ fontSize: 22, margin: '0 0 4px' }}>EduLevel</h1>
-      <p style={{ margin: '0 0 16px', color: sub, fontSize: 14 }}>Ingliz tilini bosqichma-bosqich o‘rganing.</p>
-      <div style={{ display: 'grid', gap: 10 }}>
-        {LINKS.map((l) => (
-          <a key={l.href} href={l.href} style={{ display: 'block', background: card, color: fg, borderRadius: 14, padding: '14px 16px', textDecoration: 'none', minHeight: 44 }}>
-            <strong style={{ display: 'block', fontSize: 16 }}>{l.title}</strong>
-            <span style={{ color: sub, fontSize: 13 }}>{l.hint}</span>
-          </a>
-        ))}
+    <main className={dark ? 'vision-mini-app dark' : 'vision-mini-app'}>
+      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" onReady={init} />
+      <div className="vision-mini-app-inner">
+        <h1>EduLevel</h1>
+        <p>Ingliz tilini bosqichma-bosqich o‘rganing.</p>
+        {verified && <p role="status">Telegram ochilishi tasdiqlandi.</p>}
+        <nav aria-label="Ta’lim yo‘nalishlari">
+          {LINKS.map((link) => (
+            <Link key={link.href} href={link.href} className="vision-path">
+              <span><strong>{link.title}</strong><small>{link.hint}</small></span>
+              <ArrowUpRight className="vision-arrow" size={18} aria-hidden="true" />
+            </Link>
+          ))}
+        </nav>
       </div>
     </main>
   );

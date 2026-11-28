@@ -383,15 +383,21 @@ const TestDetail: React.FC<{ test: Test; onBack: () => void; onChanged: () => vo
     } catch (e) { setMsg(e instanceof Error ? e.message : ''); }
   };
 
+  const [summaryExport, setSummaryExport] = useState(false);
   const download = async (format: 'xlsx' | 'docx') => {
-    const res = await fetch(`/api/levels/owner/${encodeURIComponent(test.id)}/report?format=${format}`);
-    if (!res.ok) { setMsg('Hisobot yuklanmadi.'); return; }
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${test.title.replace(/[^\p{L}\p{N} _-]+/gu, '').slice(0, 60) || 'hisobot'}.${format}`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    try {
+      const params = new URLSearchParams({ format, view: summaryExport ? 'summary' : 'all' });
+      const res = await fetch(`/api/levels/owner/${encodeURIComponent(test.id)}/report?${params}`);
+      if (!res.ok) { setMsg('Hisobot yuklanmadi.'); return; }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${test.title.replace(/[^\p{L}\p{N} _-]+/gu, '').slice(0, 60) || 'hisobot'}-${summaryExport ? 'saralangan' : 'barcha-urinishlar'}.${format}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setMsg('Hisobot yuklanmadi. Internet aloqasini tekshiring.');
+    }
   };
 
   const t = full?.test || test;
@@ -486,6 +492,10 @@ const TestDetail: React.FC<{ test: Test; onBack: () => void; onChanged: () => vo
             <select aria-label="Sinf bo‘yicha filtr" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="min-h-[36px] rounded-xl border border-black/10 bg-transparent px-2 text-[13px]">
               <option value="">Barcha sinflar</option>
               {Array.from(new Set(attempts.map((a) => a.class_name).filter(Boolean))).sort().map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select aria-label="Eksport turi" value={summaryExport ? 'summary' : 'all'} onChange={(e) => setSummaryExport(e.target.value === 'summary')} className="min-h-[44px] rounded-xl border border-black/15 bg-white px-2 text-[13px] dark:border-white/20 dark:bg-slate-900">
+              <option value="all">Barcha urinishlar</option>
+              <option value="summary">Saralangan natijalar</option>
             </select>
             <button type="button" onClick={() => download('xlsx')} className="min-h-[36px] rounded-xl border border-black/10 px-3 text-[13px] font-semibold">Excel</button>
             <button type="button" onClick={() => download('docx')} className="min-h-[36px] rounded-xl border border-black/10 px-3 text-[13px] font-semibold">Word</button>

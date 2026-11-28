@@ -2,20 +2,19 @@
 const { chromium } = require('playwright');
 const { appReady } = require('./app-ready.cjs');
 const BASE = process.env.BASE || 'http://localhost:3100';
-if (!/localhost|127\.0\.0\.1/.test(BASE)) { console.error('Refusing to run: local server only.'); process.exit(2); }
+if (!['localhost','127.0.0.1'].includes(new URL(BASE).hostname) || !['http:','https:'].includes(new URL(BASE).protocol)) { console.error('Refusing to run: local server only.'); process.exit(2); }
 let fails = 0;
 const check = (n, ok, x = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${n} ${x}`); if (!ok) fails++; };
 (async () => {
   const browser = await chromium.launch();
   for (const [name, vp, mobile] of [['d', { width: 1280, height: 800 }, false], ['m', { width: 390, height: 844 }, true]]) {
-    const ctx = await browser.newContext({ viewport: vp, isMobile: mobile, hasTouch: mobile });
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: new URL(BASE).protocol === 'https:', viewport: vp, isMobile: mobile, hasTouch: mobile });
     const page = await ctx.newPage();
     await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
     await appReady(page);
-    await page.waitForTimeout(600);
-    await page.locator('button[aria-label*="dubek" i]').first().click({ timeout: 5000 });
-    await page.waitForTimeout(800);
+    await page.getByRole('button', { name: /edubek/i }).first().click({ timeout: 5000 });
     const input = page.getByLabel('Edubek ga savol');
+    await input.waitFor({ state: 'visible' });
     check(name + ' dock has a text input', await input.isVisible());
     await input.fill('VIP tarif narxi qancha?');
     await input.press('Enter');

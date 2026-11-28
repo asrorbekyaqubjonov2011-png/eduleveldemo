@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const { appReady } = require('./app-ready.cjs');
 const BASE = process.env.BASE || 'http://localhost:3100';
-if (!/localhost|127\.0\.0\.1/.test(BASE)) { console.error('Refusing to run: local server only.'); process.exit(2); }
+if (!['localhost','127.0.0.1'].includes(new URL(BASE).hostname) || !['http:','https:'].includes(new URL(BASE).protocol)) { console.error('Refusing to run: local server only.'); process.exit(2); }
 const shot = (page, n) => page.screenshot({ path: `/tmp/claude-0/shots/${n}.png` });
 let fails = 0;
 const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name} ${extra}`); if (!ok) fails++; };
@@ -12,17 +12,25 @@ async function login(ctx) {
   const email = `v9-${Date.now()}-${Math.floor(Math.random()*1e4)}@test.local`;
   const r = await ctx.request.post(BASE + '/api/auth/register', { data: { name: 'Vee', surname: 'Nine', identifier: email, email, password: 'Str0ng-Pass-123!', region: 'Toshkent' } });
   if (r.status() !== 200) throw new Error('register ' + r.status());
+  const session = await ctx.request.get(BASE + '/api/auth/me');
+  if (!session.ok() || (await session.json()).role !== 'student') {
+    throw new Error('Fixture registration did not establish a student session');
+  }
 }
 async function openExam(page, tag) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await appReady(page);
   const vp = page.viewportSize();
-  await page.getByText(/Kabinetga o.tish/).first().click({ timeout: 8000 });
+  await page.getByRole('button', { name: /Kabinetga o.tish/ }).click({ timeout: 8000 });
   await page.waitForTimeout(2000);
   if (vp.width < 1024) { await page.locator('main button').first().click({ timeout: 8000 }); await page.waitForTimeout(600); }
   await (vp.width < 1024 ? page.getByText('Levelni aniqlash').last() : page.getByText('Levelni aniqlash').first()).click({ timeout: 10000 });
   await page.waitForTimeout(1500);
-  await page.getByRole('button', { name: /Boshlash|Davom ettirish/ }).first().click({ timeout: 8000 });
+  const catalog = await page.request.get(BASE + '/api/levels/tests');
+  const fixture = (await catalog.json()).tests?.find(test => test.id === 'v9-test');
+  if (!catalog.ok() || !fixture) throw new Error('Missing published v9-test fixture');
+  const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: fixture.title, exact: true }) });
+  await card.getByRole('button', { name: /Boshlash|Davom ettirish/ }).click({ timeout: 8000 });
   await page.waitForTimeout(400);
   const dlg = page.getByRole('dialog');
   await dlg.getByLabel('Ism').fill('Vee'); await dlg.getByLabel('Familiya').fill('Nine'); await dlg.getByLabel('Sinf').fill('9-A');
@@ -33,7 +41,7 @@ async function openExam(page, tag) {
 (async () => {
   const browser = await chromium.launch();
   // ===== Desktop =====
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const ctx = await browser.newContext({ ignoreHTTPSErrors: new URL(BASE).protocol === 'https:', viewport: { width: 1280, height: 800 } });
   await login(ctx);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => { console.log('PAGEERROR', e.message); fails++; });
@@ -43,7 +51,24 @@ async function openExam(page, tag) {
   check('header shows fullscreen state', await page.getByText('To‘liq ekran', { exact: true }).first().isVisible());
   await shot(page, 'd-04-exam');
   // answer Q1, flag Q2, skip Q3
+  // Interrupt the first autosave, then let the retry reach the real isolated API.
+  const attemptRoute = /\/api\/levels\/attempts\/[^/?]+$/;
+  const failPut = (route) => route.request().method() === 'PUT' ? route.abort('internetdisconnected') : route.continue();
+  await page.route(attemptRoute, failPut);
   await page.getByRole('radio', { name: /goes/ }).click();
+  await page.getByText(/Javob hali serverda saqlanmadi/).waitFor();
+  check('interrupted autosave persists an answer on this device', await page.evaluate(() =>
+    Object.keys(localStorage).some(key => key.startsWith('lvl-pending-') && Object.keys(JSON.parse(localStorage.getItem(key))).length > 0)
+  ));
+  const retry = page.waitForResponse(response =>
+    attemptRoute.test(response.url()) && response.request().method() === 'PUT' && response.ok()
+  );
+  await page.unroute(attemptRoute, failPut);
+  const saved = await retry;
+  const sentAnswer = saved.request().postDataJSON();
+  const state = await (await ctx.request.get(saved.url())).json();
+  check('autosave retry restores the answer on the server', state.answers?.[sentAnswer.questionId] === sentAnswer.choice);
+
   await page.getByRole('button', { name: /Keyingi savol/ }).click();
   await page.getByRole('button', { name: /Keyin ko.rish/ }).click();
   await page.getByRole('button', { name: /Keyingi savol/ }).click();
@@ -83,7 +108,7 @@ async function openExam(page, tag) {
   check('result page shown', await page.getByText('Test yakunlandi').isVisible());
   await shot(page, 'd-09-result');
   // ===== Mobile =====
-  const m = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const m = await browser.newContext({ ignoreHTTPSErrors: new URL(BASE).protocol === 'https:', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await login(m);
   const mp = await m.newPage();
   mp.on('pageerror', (e) => { console.log('MOBILE PAGEERROR', e.message); fails++; });

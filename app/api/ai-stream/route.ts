@@ -5,6 +5,8 @@ import { SESSION_COOKIE, OWNER_ID, hashToken } from '@/src/lib/auth/session';
 import { rateLimit } from '@/src/lib/auth/rateLimit';
 import { streamTutorAnswer, type TutorParams } from '@/src/lib/universalAi';
 import { availableFallbacks } from '@/src/lib/aiRouter';
+import { sanitizeRouting } from '@/src/lib/aiRouting';
+import { ensureProviderUsagePersistence } from '@/src/lib/aiUsagePersist';
 import { aiCallStore, readAiStats, recordAiStats, statsDay, type AiCallRecord } from '@/src/lib/aiStats';
 import { aiMinutesFor, costSom, readAiSeconds, type AiLimits } from '@/src/lib/aiTime';
 
@@ -13,6 +15,9 @@ export const dynamic = 'force-dynamic';
 
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json({ success: false, ...body }, { status });
 const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+const MAX_ACTIVE_STREAMS = 12;
+let activeStreams = 0;
+
 
 /**
  * Edubek's streamed answer without loading the whole database: the person, the settings and (when picked)
@@ -21,22 +26,45 @@ const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : 
  */
 export async function POST(req: NextRequest) {
   if (req.headers.get('sec-fetch-site') === 'cross-site') return json({ message: 'So‘rov rad etildi.' }, 403);
-  const pool = getPool();
+  const length = Number(req.headers.get('content-length') || 0);
+  if (length > 96_000) return json({ message: 'So‘rov hajmi juda katta.' }, 413);
   let body: any;
   try {
-    body = await req.json();
+    // Count actual UTF-8 bytes, even if a client omits the Content-Length header.
+    const reader = req.body?.getReader();
+    if (!reader) return json({ message: 'So‘rov bo‘sh.' }, 400);
+    const decoder = new TextDecoder();
+    let raw = '', received = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.byteLength;
+        if (received > 96_000) { void reader.cancel().catch(() => {}); return json({ message: 'So‘rov hajmi juda katta.' }, 413); }
+        raw += decoder.decode(value, { stream: true });
+      }
+      raw += decoder.decode();
+    } finally { reader.releaseLock(); }
+    body = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ message: 'So‘rov noto‘g‘ri.' }, 400);
   } catch {
     return json({ message: 'So‘rov noto‘g‘ri.' }, 400);
   }
+  if (activeStreams >= MAX_ACTIVE_STREAMS) return NextResponse.json({ success: false, code: 'AI_BUSY', message: 'EduBek band. Birozdan so‘ng qayta urinib ko‘ring.' }, { status: 503, headers: { 'Retry-After': '2' } });
+  activeStreams++;
+  let released = false, handedOff = false;
+  const release = () => { if (!released) { released = true; activeStreams--; } };
   try {
+    const pool = getPool();
     await ensureBootstrap(pool);
     const token = req.cookies.get(SESSION_COOKIE)?.value || (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') || null;
     // One round trip for the session, its user and the two settings this route needs (it used to be three).
     const tokenHash = token ? hashToken(token) : null;
     const head = tokenHash
       ? await pool.query(
-          `select s.is_owner, s.user_id, u.name, u.vip_tier, u.vip_expires_at, u.track,
-                  (select json_object_agg(x.key, x.value) from public.site_settings x where x.key in ('features', 'ai_limits')) as settings
+          `select s.is_owner, s.user_id, u.name, u.vip_tier, u.vip_expires_at, u.track, u.id as existing_user_id,
+                  (case when u.banned_until is not null then u.banned_until > now() else coalesce(u.is_blocked, false) end) as banned,
+                  (select json_object_agg(x.key, x.value) from public.site_settings x where x.key in ('features', 'ai_limits', 'ai_routing')) as settings
              from public.sessions s
              left join public.users u on u.id = s.user_id
             where s.token_hash = $1 and s.expires_at > now()`,
@@ -46,6 +74,7 @@ export async function POST(req: NextRequest) {
     const row = head.rows[0];
     if (!row) return json({ message: 'Avval tizimga kiring.', code: 'UNAUTHORIZED' }, 401);
     const owner = !!row.is_owner;
+    if (!owner && (!row.existing_user_id || row.banned)) return json({ message: 'Avval tizimga kiring.', code: 'UNAUTHORIZED' }, 401);
     const who = owner ? OWNER_ID : row.user_id;
 
     const lim = rateLimit(`ai:${who}`, owner ? 300 : 120, 60 * 60 * 1000);
@@ -86,6 +115,7 @@ export async function POST(req: NextRequest) {
       lesson = { title: l.title, code: l.lesson_code || undefined, description: l.description, notes: l.notes_markdown || undefined, homework: l.homework || undefined };
     }
 
+    await ensureProviderUsagePersistence();
     const key = (process.env.GEMINI_API_KEY || '').trim();
     // Gemini is the primary provider; without it the fallback providers (Groq, DeepSeek, OpenRouter, Mistral) still answer.
     if (!key && availableFallbacks(process.env).length === 0) {
@@ -98,6 +128,7 @@ export async function POST(req: NextRequest) {
       .filter((m: { text: string }) => m.text.trim());
     const params: TutorParams = {
       userMessage,
+      routing: sanitizeRouting(settings.get('ai_routing')),
       lesson,
       history,
       studentName: owner ? 'Ustoz' : user?.name || 'do‘st',
@@ -114,43 +145,57 @@ export async function POST(req: NextRequest) {
 
     const enc = new TextEncoder();
     const calls: AiCallRecord[] = [];
+    const inner = new AbortController();
+    const cancel = () => inner.abort();
+    req.signal.addEventListener('abort', cancel, { once: true });
+    if (req.signal.aborted) cancel();
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        // A first invisible byte opens the connection at once, so no proxy waits for the model before it lets the page listen.
-        controller.enqueue(enc.encode('​'));
-        // One deadline for the whole answer: if no word was written in 45 s the request is cancelled and the student is told,
-        // instead of waiting for a proxy to drop the connection. The student's own stop/leave also cancels it.
-        const inner = new AbortController();
-        req.signal.addEventListener('abort', () => inner.abort(), { once: true });
+        let closed = false;
+        const send = (text: string) => {
+          if (closed || inner.signal.aborted) return;
+          try { controller.enqueue(enc.encode(text)); }
+          catch { closed = true; cancel(); }
+        };
+        send('\u200b');
         let emitted = false;
-        let timedOut = false;
-        const deadline = setTimeout(() => { if (!emitted) { timedOut = true; inner.abort(); } }, 45_000);
+        // The gateway enforces the shorter task deadline. This is the hard transport ceiling.
+        const timer = setTimeout(() => {
+          send('\u0001EduBek javob vaqti tugadi. Qayta urinib ko‘ring.');
+          cancel();
+          if (!closed) { closed = true; try { controller.close(); } catch { /* disconnected */ } }
+        }, 45_000);
         void aiCallStore.run({ calls }, async () => {
           try {
-            const full = await streamTutorAnswer(params, (piece) => { if (piece) { emitted = true; controller.enqueue(enc.encode(piece)); } }, inner.signal);
-            if (!emitted && !req.signal.aborted) {
-              controller.enqueue(enc.encode('\u0001' + (timedOut ? 'Edubek hozir band. Birozdan so‘ng qayta urinib ko‘ring.' : full ? '' : 'Edubek bo‘sh javob qaytardi. Qayta urinib ko‘ring.')));
+            await streamTutorAnswer(params, piece => {
+              if (piece) { emitted = true; send(piece); }
+            }, inner.signal);
+            if (!emitted && !inner.signal.aborted) send('\u0001EduBek bo‘sh javob qaytardi. Qayta urinib ko‘ring.');
+          } catch (e) {
+            if (!inner.signal.aborted) {
+              console.error('[ai-stream]', e instanceof Error ? e.name : 'UnknownError');
+              send('\u0001' + (emitted
+                ? 'Javob uzilib qoldi. Qayta urinib ko‘ring.'
+                : 'AI xizmati hozir javob bermadi. Birozdan so‘ng qayta urinib ko‘ring.'));
             }
-          } catch (e: any) {
-            console.error('[ai-stream]', e?.detail || e?.message);
-            controller.enqueue(enc.encode('\u0001' + (e?.message || 'AI xizmati javob bermadi. Birozdan so‘ng qayta urinib ko‘ring.')));
           } finally {
-            clearTimeout(deadline);
-            try {
-              controller.close();
-            } catch {
-              /* the page already left */
-            }
-            void recordAiStats(calls, { op: 'chat-tutor', userId: who });
+            clearTimeout(timer);
+            req.signal.removeEventListener('abort', cancel);
+            if (!closed) { closed = true; try { controller.close(); } catch { /* disconnected */ } }
+            release();
+            void recordAiStats(calls, { op: 'chat-tutor', userId: who }).catch(() => {});
           }
         });
-      }
+      },
+      cancel() { cancel(); req.signal.removeEventListener('abort', cancel); }
     });
-    return new NextResponse(stream, {
+    const response = new NextResponse(stream, {
       headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Content-Encoding': 'identity' }
     });
+    handedOff = true;
+    return response;
   } catch (e) {
-    console.error('[ai-stream] failed', (e as Error)?.message);
+    console.error('[ai-stream] failed', (e as Error)?.name);
     return json({ code: 'SERVER_ERROR', message: 'Server xatosi. Qayta urinib ko‘ring.' }, 500);
-  }
+  } finally { if (!handedOff) release(); }
 }

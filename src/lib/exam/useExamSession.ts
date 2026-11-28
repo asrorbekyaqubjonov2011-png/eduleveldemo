@@ -24,16 +24,19 @@ export interface ExamResultSummary {
   scaleNote: string;
 }
 
-function guestKey(): string {
+let guestFallbackKey: string | null = null;
+export function guestKey(): string {
   try {
     let k = localStorage.getItem('edulevel_guest_key');
     if (!k) {
       k = (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/-/g, '');
       localStorage.setItem('edulevel_guest_key', k);
     }
+    guestFallbackKey = k;
     return k;
   } catch {
-    return 'anon' + Date.now();
+    guestFallbackKey ??= 'anon' + (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
+    return guestFallbackKey;
   }
 }
 

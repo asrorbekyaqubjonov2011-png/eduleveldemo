@@ -100,14 +100,12 @@ export function useEdubekMood(): MoodState {
     if (!angry) s.misses = false;
     commit();
     return { angry, calmed };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const praise = useCallback(() => {
     ref.current.score = clamp(ref.current.score + 3);
     ref.current.misses = false;
     commit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const angry = nowMs < snap.angryUntil;

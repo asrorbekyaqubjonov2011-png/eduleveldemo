@@ -3,7 +3,7 @@ import { withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
 import { changedUrls, loadState, submitUrls } from '@/src/lib/indexnow';
 import sitemap from '../../../sitemap';
-import { getSiteUrl } from '@/src/components/seo/siteUrl';
+import { CANONICAL_SITE_URL, getSiteUrl } from '@/src/components/seo/siteUrl';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +40,9 @@ async function handleGet(req: NextRequest) {
 async function handlePost(req: NextRequest) {
   const auth = requireOwner(req);
   if (auth instanceof NextResponse) return auth;
+  if (site() !== CANONICAL_SITE_URL) {
+    return NextResponse.json({ success: false, message: 'IndexNow faqat edulevel.uz domenida ishlaydi.', code: 'INDEXNOW_PREVIEW' }, { status: 409 });
+  }
   const body = (await req.json().catch(() => ({}))) as { action?: string; urls?: unknown };
   const all = await entries();
   const mods = Object.fromEntries(all.map((e) => [e.url, e.lastModified ? new Date(e.lastModified).toISOString().slice(0, 10) : '']));

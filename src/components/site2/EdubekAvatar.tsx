@@ -1,20 +1,9 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
 
 export type EdubekMood = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'sad' | 'angry' | 'surprised' | 'sleepy';
 
-/**
- * EduBek, drawn in code (vector, transparent background), following the approved character sheet:
- * white glossy shell, black visor with cyan glowing eyes, purple ear pods and antenna, a glowing neck ring,
- * the graduation-cap logo and "EduBek" on the chest, and two arms with hands.
- *
- * Movement is only where it is needed:
- * - the head is still by default;
- * - it turns toward the pointer while the pointer is over the avatar, and turns forward when it is released;
- * - it looks forward while listening, and nods gently while speaking;
- * - the eyes blink now and then; the arms move only for the happy and speaking states.
- * Parts are separate groups (head, left arm, right arm, body) so each can be animated on its own.
- */
+/** Layered EduBek mascot with separate head, visor, face and body. */
 const LABEL: Record<EdubekMood, string> = {
   idle: 'Edubek: tabassum',
   listening: 'Edubek: tinglayapti',
@@ -31,14 +20,14 @@ const CYAN = '#4fe3ff';
 const PURPLE = '#7b4dff';
 
 /** The face for each mood, drawn inside the visor (x 44–156, y 40–112). */
-function Face({ mood }: { mood: EdubekMood }) {
-  const eye = { fill: CYAN, filter: 'url(#edubek-glow)' };
-  switch (mood) {
+function Face({ mood, prefix, audioPlaying }: { mood: EdubekMood; prefix: string; audioPlaying: boolean }) {
+  const eye = { fill: CYAN, filter: `url(#${prefix}-glow)` };
+  switch (audioPlaying && mood !== 'speaking' ? 'speaking' : mood) {
     case 'happy':
       return (
         <g>
-          <path d="M66 76 Q78 60 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
-          <path d="M110 76 Q122 60 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path className="edubek-eye" d="M66 76 Q78 60 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
+          <path className="edubek-eye" d="M110 76 Q122 60 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
           <path d="M84 94 Q100 118 116 94 Z" fill="#ff7fb0" />
         </g>
       );
@@ -49,7 +38,7 @@ function Face({ mood }: { mood: EdubekMood }) {
           <ellipse cx="122" cy="76" rx="8" ry="10" {...eye} />
           <path d="M66 68 L88 60" stroke="#0a0920" strokeWidth="4" strokeLinecap="round" />
           <path d="M134 68 L112 60" stroke="#0a0920" strokeWidth="4" strokeLinecap="round" />
-          <path d="M88 106 Q100 96 112 106" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M88 106 Q100 96 112 106" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
         </g>
       );
     case 'angry':
@@ -59,7 +48,7 @@ function Face({ mood }: { mood: EdubekMood }) {
           <path d="M132 70 L112 76 L112 84 L132 80 Z" {...eye} />
           <path d="M62 58 L88 66" stroke="#ff4d5a" strokeWidth="5" strokeLinecap="round" />
           <path d="M138 58 L112 66" stroke="#ff4d5a" strokeWidth="5" strokeLinecap="round" />
-          <path d="M88 104 Q100 98 112 104" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M88 104 Q100 98 112 104" stroke={CYAN} strokeWidth="4" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
         </g>
       );
     case 'surprised':
@@ -73,8 +62,8 @@ function Face({ mood }: { mood: EdubekMood }) {
     case 'sleepy':
       return (
         <g>
-          <path d="M66 76 Q78 84 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
-          <path d="M110 76 Q122 84 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter="url(#edubek-glow)" />
+          <path d="M66 76 Q78 84 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
+          <path d="M110 76 Q122 84 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
           <path d="M94 98 Q100 102 106 98" stroke={CYAN} strokeWidth="3.5" fill="none" strokeLinecap="round" />
         </g>
       );
@@ -98,8 +87,8 @@ function Face({ mood }: { mood: EdubekMood }) {
             strokeWidth="4"
             fill="none"
             strokeLinecap="round"
-            filter="url(#edubek-glow)"
-            className={mood === 'speaking' ? 'edubek-mouth' : undefined}
+            filter={`url(#${prefix}-glow)`}
+            className={audioPlaying ? 'edubek-audible-mouth' : undefined}
           />
         </g>
       );
@@ -144,23 +133,47 @@ function Mark({ mood }: { mood: EdubekMood }) {
   }
 }
 
-export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?: boolean; animated?: boolean }> = ({
+export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?: boolean; animated?: boolean; audioPlaying?: boolean }> = ({
   mood = 'idle',
   size = 64,
   typing = false,
-  animated = true
+  animated = true,
+  audioPlaying = false
 }) => {
+  const prefix = 'edubek-' + useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const state: EdubekMood = typing && mood === 'idle' ? 'listening' : mood;
-  const [look, setLook] = useState(0); // -1 (left) .. 1 (right), set by the mouse or finger over the avatar
-  const [aimed, setAimed] = useState(false); // true while a mouse or finger points at the avatar
   const box = useRef<HTMLDivElement | null>(null);
-  const turning = animated && state !== 'listening';
-  const headYaw = turning ? look : 0;
-  // Without a pointer on him, Edubek looks slowly left and right by himself (CSS, transform only).
-  const idleLook = turning && !aimed && look === 0;
+  const pointerFrame = useRef(0);
+
+  useEffect(() => {
+    const element = box.current;
+    if (!animated || !element) return;
+    const updateVisibility = () => {
+      element.dataset.documentHidden = String(document.hidden);
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      element.dataset.offscreen = String(!entry.isIntersecting);
+    });
+    observer.observe(element);
+    updateVisibility();
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', updateVisibility);
+      cancelAnimationFrame(pointerFrame.current);
+    };
+  }, [animated]);
+
+  function resetPointer(element: HTMLDivElement) {
+    cancelAnimationFrame(pointerFrame.current);
+    delete element.dataset.aimed;
+    element.style.removeProperty('--edu-yaw');
+    element.style.removeProperty('--edu-shift');
+  }
+
   const armLeft = animated && state === 'happy' ? 'edubek-arm-wave' : animated && state === 'speaking' ? 'edubek-arm-talk' : '';
   const armRight = animated && state === 'speaking' ? 'edubek-arm-talk' : '';
-  const headNod = animated && state === 'speaking' ? 'edubek-head-nod' : '';
+  const headNod = animated && audioPlaying ? 'edubek-head-nod' : '';
   const height = Math.round((size * 260) / 200);
 
   return (
@@ -168,60 +181,63 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
       ref={box}
       role="img"
       aria-label={LABEL[state] || LABEL.idle}
-      className="relative shrink-0 select-none"
+      className={'relative shrink-0 select-none vision-avatar ' + (animated ? 'vision-avatar-animated' : '')}
       style={{ width: size, height }}
-      onPointerDown={(e) => {
-        if (!animated) return;
-        setAimed(true);
-        if (box.current) {
-          const r = box.current.getBoundingClientRect();
-          setLook(Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2))));
-        }
+      data-mood={state}
+      data-audio-playing={audioPlaying}
+      onPointerMove={(event) => {
+        if (!animated || event.pointerType !== 'mouse' || state === 'listening' ||
+            !window.matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return;
+        const element = event.currentTarget;
+        const x = event.clientX;
+        cancelAnimationFrame(pointerFrame.current);
+        pointerFrame.current = requestAnimationFrame(() => {
+          const rect = element.getBoundingClientRect();
+          const yaw = Math.max(-1, Math.min(1, (x - rect.left) * 2 / rect.width - 1));
+          element.dataset.aimed = 'true';
+          element.style.setProperty('--edu-yaw', `${yaw * 9}deg`);
+          element.style.setProperty('--edu-shift', `${yaw * 5}px`);
+        });
       }}
-      onPointerMove={(e) => {
-        if (!animated || !box.current) return;
-        const r = box.current.getBoundingClientRect();
-        const v = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
-        setLook(Math.max(-1, Math.min(1, v)));
-      }}
-      onPointerUp={() => setAimed(false)}
-      onPointerLeave={() => {
-        setAimed(false);
-        setLook(0);
-      }}
+      onPointerLeave={(event) => resetPointer(event.currentTarget)}
+      onPointerCancel={(event) => resetPointer(event.currentTarget)}
     >
       <svg width={size} height={height} viewBox="0 0 200 260" className="overflow-visible" aria-hidden="true">
         <defs>
-          <linearGradient id="edubek-shell" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`${prefix}-shell`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#ffffff" />
-            <stop offset="1" stopColor="#dcd7f2" />
+            <stop offset="0.52" stopColor="#f2f5ff" />
+            <stop offset="1" stopColor="#b4c4ed" />
           </linearGradient>
-          <linearGradient id="edubek-visor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#2e2766" />
-            <stop offset="1" stopColor="#06051a" />
+          <linearGradient id={`${prefix}-visor`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#23385c" />
+            <stop offset="1" stopColor="#071023" />
           </linearGradient>
-          <linearGradient id="edubek-pod" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#9a7bff" />
-            <stop offset="1" stopColor="#5a33d6" />
+          <linearGradient id={`${prefix}-pod`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#b3a1ff" />
+            <stop offset="1" stopColor="#435bde" />
           </linearGradient>
-          <filter id="edubek-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <filter id={`${prefix}-glow`} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="1.6" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="edubek-soft" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#2a2360" floodOpacity="0.22" />
-          </filter>
+          <linearGradient id={`${prefix}-rim`} x2="1" y2="1">
+            <stop stopColor="#ffffff" />
+            <stop offset=".52" stopColor="#d5dfef" />
+            <stop offset="1" stopColor="#747cb2" />
+          </linearGradient>
         </defs>
 
         {/* Body: torso, neck ring, chest logo */}
         <g className={animated ? 'edubek-body' : undefined} style={{ transformBox: 'view-box', transformOrigin: '100px 240px' }}>
           <ellipse cx="100" cy="252" rx="48" ry="5" fill="#2a2360" opacity="0.14" />
-          <rect x="50" y="138" width="100" height="108" rx="40" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <rect x="50" y="138" width="100" height="108" rx="40" fill={`url(#${prefix}-shell)`} stroke={`url(#${prefix}-rim)`} />
           <path d="M52 178 Q50 214 60 240" stroke={PURPLE} strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.7" />
           <path d="M148 178 Q150 214 140 240" stroke={PURPLE} strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.7" />
+          <circle cx="100" cy="186" r="24" fill="#e8e9ff" stroke="#fff" />
           <g transform="translate(100 186)">
             <path d="M0 -10 L16 -3 L0 4 L-16 -3 Z" fill={PURPLE} />
             <path d="M-9 1 L-9 8 Q0 13 9 8 L9 1 L0 5 Z" fill={PURPLE} />
@@ -232,42 +248,37 @@ export const EdubekAvatar: React.FC<{ mood?: EdubekMood; size?: number; typing?:
           </text>
         </g>
         <rect x="80" y="122" width="40" height="14" rx="7" fill="#1e1b3a" />
-        <rect x="84" y="128" width="32" height="3" rx="1.5" fill={CYAN} filter="url(#edubek-glow)" />
+        <rect x="84" y="128" width="32" height="3" rx="1.5" fill={CYAN} filter={`url(#${prefix}-glow)`} />
 
         {/* Arms: each arm is its own group, pivoting at the shoulder */}
         <g className={armLeft || undefined} style={{ transformBox: 'view-box', transformOrigin: '52px 156px' }}>
-          <rect x="30" y="150" width="26" height="62" rx="13" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <rect x="30" y="150" width="26" height="62" rx="13" fill={`url(#${prefix}-shell)`} stroke={`url(#${prefix}-rim)`} />
           <rect x="30" y="156" width="26" height="8" rx="4" fill={PURPLE} />
-          <circle cx="43" cy="218" r="11" fill="#ffffff" filter="url(#edubek-soft)" />
+          <circle cx="43" cy="218" r="11" fill="#ffffff" stroke={`url(#${prefix}-rim)`} />
         </g>
         <g className={armRight || undefined} style={{ transformBox: 'view-box', transformOrigin: '148px 156px' }}>
-          <rect x="144" y="150" width="26" height="62" rx="13" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <rect x="144" y="150" width="26" height="62" rx="13" fill={`url(#${prefix}-shell)`} stroke={`url(#${prefix}-rim)`} />
           <rect x="144" y="156" width="26" height="8" rx="4" fill={PURPLE} />
-          <circle cx="157" cy="218" r="11" fill="#ffffff" filter="url(#edubek-soft)" />
+          <circle cx="157" cy="218" r="11" fill="#ffffff" stroke={`url(#${prefix}-rim)`} />
         </g>
 
         {/* Head: antenna, shell, ear pods, visor and face. It turns around the neck. */}
         <g
-          className={idleLook ? 'edubek-look' : undefined}
-          style={{
-            transformBox: 'view-box',
-            transformOrigin: '100px 124px',
-            transform: `translateX(${headYaw * 6}px) rotate(${headYaw * 12 + (state === 'thinking' ? -6 : 0)}deg)`,
-            transition: 'transform 0.45s cubic-bezier(.2,.8,.2,1)'
-          }}
+          className="edubek-articulated-head"
         >
         <g className={headNod || undefined} style={{ transformBox: 'view-box', transformOrigin: '100px 124px' }}>
           <line x1="100" y1="22" x2="100" y2="34" stroke={PURPLE} strokeWidth="5" strokeLinecap="round" />
-          <circle cx="100" cy="16" r="8" fill="url(#edubek-pod)" filter="url(#edubek-glow)" />
-          <rect x="30" y="24" width="140" height="102" rx="50" fill="url(#edubek-shell)" filter="url(#edubek-soft)" />
+          <circle cx="100" cy="16" r="8" fill={`url(#${prefix}-pod)`} filter={`url(#${prefix}-glow)`} />
+          <rect x="30" y="24" width="140" height="102" rx="50" fill={`url(#${prefix}-shell)`} stroke={`url(#${prefix}-rim)`} />
           <path d="M40 40 Q100 22 160 40" stroke="#ffffff" strokeWidth="5" fill="none" opacity="0.6" strokeLinecap="round" />
-          <circle cx="26" cy="76" r="16" fill="url(#edubek-pod)" />
+          <circle cx="26" cy="76" r="16" fill={`url(#${prefix}-pod)`} />
           <circle cx="26" cy="76" r="9" fill="none" stroke={CYAN} strokeWidth="2" opacity="0.8" />
-          <circle cx="174" cy="76" r="16" fill="url(#edubek-pod)" />
+          <circle cx="174" cy="76" r="16" fill={`url(#${prefix}-pod)`} />
           <circle cx="174" cy="76" r="9" fill="none" stroke={CYAN} strokeWidth="2" opacity="0.8" />
-          <rect x="44" y="40" width="112" height="72" rx="36" fill="url(#edubek-visor)" />
+          <rect x="40" y="36" width="120" height="80" rx="40" fill="#7389b9" />
+          <rect x="44" y="40" width="112" height="72" rx="36" fill={`url(#${prefix}-visor)`} stroke="#162847" strokeWidth="2" />
           <ellipse cx="100" cy="50" rx="46" ry="6" fill="#ffffff" opacity="0.12" />
-          <Face mood={state} />
+          <Face mood={state} prefix={prefix} audioPlaying={animated && audioPlaying} />
           <Mark mood={state} />
         </g>
         </g>

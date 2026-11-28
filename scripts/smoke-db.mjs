@@ -21,7 +21,7 @@ async function call(who, method, path, body) {
 const step = (name, r, ok) => console.log(`${ok ? 'PASS' : 'FAIL'} ${name} -> ${r.status}${r.json?.message ? ' | ' + String(r.json.message).slice(0, 90) : ''}`);
 
 const results = {};
-let r = await call('owner', 'POST', 'auth/login', { loginInput: 'jasurbek', password: OWNER_PASSWORD });
+let r = await call('owner', 'POST', 'auth/login', { loginInput: process.env.OWNER_USERNAME || 'jasurbek', password: OWNER_PASSWORD });
 results.ownerLogin = r; step('owner login', r, r.status === 200 && r.json?.role === 'owner');
 
 r = await call('owner', 'POST', 'courses', { title: 'Smoke kurs', description: 'Test', level: 'ielts', track: 'ielts', price: 0, published: true, requiredVIP: 'none' });

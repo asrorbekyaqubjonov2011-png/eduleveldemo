@@ -53,6 +53,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
     [id, auth.userId]
   );
   const current = open.rows[0];
+  let expiredAttemptId: string | undefined;
   if (current) {
     if (current.status === 'blocked') {
       return NextResponse.json({ success: false, code: 'BLOCKED', attemptId: current.id, message: 'Siz bloklangansiz. Owner beradigan kodni kiriting.' }, { status: 423 });
@@ -61,6 +62,7 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ success: true, attemptId: current.id, resumed: true, deadlineAt: current.deadline_at });
     }
     await finalizeAttempt({ ...current, grading_rules: test.grading_rules, certificate_enabled: test.certificate_enabled }, 'expired');
+    expiredAttemptId = current.id;
   }
 
   const made = await pool.query(
@@ -68,6 +70,10 @@ async function handlePost(req: NextRequest, ctx: Ctx) {
     [id, auth.userId]
   );
   if (!canStartAttempt(made.rows[0]?.n ?? 0, test.attempts_allowed)) {
+    // A successful response commits the final grade and lets the runner show the expired result.
+    if (expiredAttemptId) {
+      return NextResponse.json({ success: true, attemptId: expiredAttemptId, resumed: true, status: 'expired' });
+    }
     return NextResponse.json({ success: false, message: 'Bu testni boshlash uchun urinishlar tugagan.' }, { status: 409 });
   }
 

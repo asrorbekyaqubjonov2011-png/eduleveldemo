@@ -1,3 +1,8 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
 // Level tests (Levelni aniqlash) end-to-end check against a LOCAL or staging server.
 // Usage: BASE=http://localhost:3100 OWNER_USERNAME=jasurbek OWNER_PASSWORD=... node scripts/e2e-levels.mjs
 // Creates a test, questions, a throwaway student and attempts. Do not run against production data.
@@ -15,6 +20,11 @@ const S = { cookie: `el_session=${stu}`, 'content-type': 'application/json' };
 let fails = 0;
 const check = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'} ${name} ${extra}`); if (!cond) fails++; };
 const j = async (url, init = {}) => { const r = await fetch(BASE + url, init); const b = await r.json().catch(() => ({})); return { s: r.status, b, r }; };
+
+const invalidRules = await j('/api/levels/owner', {
+  method: 'POST', headers: O, body: JSON.stringify({ title: 'Invalid grading fixture', gradingRules: [null] })
+});
+check('invalid grading entry returns a validation error', invalidRules.s === 400 && invalidRules.b.success === false);
 
 // 1. owner creates an open test, adds questions, publishes
 const t = await j('/api/levels/owner', { method: 'POST', headers: O, body: JSON.stringify({ kind: 'test', title: 'E2E test', access: 'open', timeLimitSeconds: 300, attemptsAllowed: 2, maxViolations: 2, gradingRules: [{ min: 0, max: 49, level: 'A2' }, { min: 50, max: 100, level: 'B1', certificate: true }], certificateEnabled: true }) });
@@ -77,6 +87,16 @@ const reuse = await j(`/api/levels/attempts/${aid}/unlock`, { method: 'POST', he
 check('unlock code cannot be reused', reuse.s === 409, String(reuse.s));
 
 // 10. finish -> score, level from rules, certificate
+const addedDuringAttempt = await j(`/api/levels/owner/${id}/questions`, {
+  method: 'POST', headers: O, body: JSON.stringify({ questions: [{ prompt: 'Added during attempt', options: ['a', 'b'], correctIndex: 0, points: 2 }] })
+});
+check('owner may add a question during an active attempt', addedDuringAttempt.s === 201);
+const resumed = await j(`/api/levels/tests/${id}/start`, {
+  method: 'POST', headers: S, body: JSON.stringify({ firstName: 'Ali', lastName: 'Valiyev', className: '9-A' })
+});
+const resumedState = await j(`/api/levels/attempts/${aid}`, { headers: S });
+check('resume keeps the assigned questions and saved answers',
+  resumed.b.attemptId === aid && resumed.b.resumed && resumedState.b.questions?.length === 2 && resumedState.b.answers?.[q1.id] === 1);
 const fin = await j(`/api/levels/attempts/${aid}`, { method: 'POST', headers: S });
 check('finish returns result', fin.b.success && fin.b.result, JSON.stringify(fin.b));
 check('score 2 of 3 points = 67% -> B1', fin.b.result?.level === 'B1' && Math.round(fin.b.result?.percent) === 67, JSON.stringify(fin.b.result));
@@ -96,6 +116,24 @@ check('xlsx report downloads', rep.status === 200 && buf.slice(0, 2).toString() 
 fs.writeFileSync('/tmp/e2e-report.xlsx', buf);
 const repd = await fetch(`${BASE}/api/levels/owner/${id}/report?format=docx`, { headers: O });
 check('docx report downloads', repd.status === 200 && Buffer.from(await repd.arrayBuffer()).slice(0, 2).toString() === 'PK');
+
+const reportUrl = `${BASE}/api/levels/owner/${id}/report`;
+const reportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'placement-summary-'));
+try {
+  for (const [format, entry] of [['xlsx', 'xl/worksheets/sheet1.xml'], ['docx', 'word/document.xml']]) {
+    const response = await fetch(`${reportUrl}?format=${format}&view=summary`, { headers: O });
+    const filename = path.join(reportDir, 'fixture.' + format);
+    fs.writeFileSync(filename, Buffer.from(await response.arrayBuffer()));
+    const xml = response.ok ? execFileSync('unzip', ['-p', filename, entry], { encoding: 'utf8' }) : '';
+    check(format + ' summary keeps the higher-scoring attempt only',
+      response.ok && xml.includes(aid) && !xml.includes(st2.b.attemptId) && xml.includes('9-A') &&
+      response.headers.get('cache-control') === 'private, no-store');
+  }
+  const studentExport = await fetch(reportUrl + '?view=summary', { headers: S });
+  check('summary export remains owner only', studentExport.status === 403);
+} finally {
+  fs.rmSync(reportDir, { recursive: true, force: true });
+}
 
 // 13. code-protected test
 const ct = await j('/api/levels/owner', { method: 'POST', headers: O, body: JSON.stringify({ kind: 'tournament', title: 'E2E kodli turnir', access: 'code', timeLimitSeconds: 600 }) });
@@ -128,6 +166,37 @@ const sOwn = await j('/api/levels/owner', { headers: S });
 check('student blocked from owner list', sOwn.s === 403, String(sOwn.s));
 const anon = await j('/api/levels/tests');
 check('anonymous blocked from student list', anon.s === 401, String(anon.s));
+
+if (process.env.PLACEMENT_EXPIRY_FIXTURE === '1') {
+  if (process.env.PGHOST !== '127.0.0.1' || process.env.PGDATABASE !== 'edulevel') throw new Error('Disposable Postgres fixture required');
+  const { Client } = (await import('pg')).default;
+  const fixtureDb = new Client();
+  const expired = await j('/api/levels/owner', { method: 'POST', headers: O, body: JSON.stringify({ title: 'Expiry fixture', attemptsAllowed: 1 }) });
+  const testId = expired.b.id;
+  const ownerTest = `/api/levels/owner/${testId}`;
+  await j(ownerTest + '/questions', { method: 'POST', headers: O, body: JSON.stringify({ questions: [{ prompt: 'Fixture question', options: ['a', 'b'], correctIndex: 0 }] }) });
+  await j(ownerTest, { method: 'PATCH', headers: O, body: JSON.stringify({ status: 'published' }) });
+  const finishPath = `/api/levels/tests/${testId}/start`;
+  const details = JSON.stringify({ firstName: 'Expiry', lastName: 'Fixture', className: '9-A' });
+  const start = await j(finishPath, { method: 'POST', headers: S, body: details });
+  check('expiry fixture starts its sole attempt', start.s === 201 && !!start.b.attemptId);
+  await fixtureDb.connect();
+  try {
+    const changed = await fixtureDb.query(
+      "update public.level_attempts set deadline_at = now() - interval '1 second' where id = $1 and test_id = $2",
+      [start.b.attemptId, testId]
+    );
+    check('expired deadline is set on the disposable fixture row', changed.rowCount === 1);
+    const open = await j(finishPath, { method: 'POST', headers: S, body: details });
+    const saved = await fixtureDb.query('select status, score from public.level_attempts where id = $1', [start.b.attemptId]);
+    check('resuming the final expired attempt commits its grade', open.s === 200 && open.b.status === 'expired' &&
+      open.b.attemptId === start.b.attemptId && saved.rows[0]?.status === 'expired' && saved.rows[0].score === 0);
+    const retry = await j(finishPath, { method: 'POST', headers: S, body: details });
+    check('starting a new attempt remains forbidden after expiry at the limit', retry.s === 409);
+  } finally {
+    await fixtureDb.end();
+  }
+}
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED');
 process.exit(fails ? 1 : 0);

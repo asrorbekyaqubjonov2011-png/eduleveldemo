@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPayload, changedUrls, describeStatus, isValidKey, normalizeUrls } from './indexnow';
+import { buildPayload, changedUrls, describeStatus, isValidKey, normalizeUrls, submitUrls } from './indexnow';
 
 describe('IndexNow helpers', () => {
   test('only https URLs of the canonical host are kept, once each, without fragments', () => {
@@ -21,5 +21,14 @@ describe('IndexNow helpers', () => {
     assert.equal(describeStatus(null).ok, false);
     assert.equal(isValidKey('abcd1234'), true);
     assert.equal(isValidKey('bad key!'), false);
+  });
+  test('preview submissions stop before database access or network calls', async () => {
+    let sent = false;
+    const result = await submitUrls('preview.onrender.com', 'https://preview.onrender.com', ['https://preview.onrender.com/page'], 'publish', {}, async () => {
+      sent = true;
+      throw new Error('Unexpected network call');
+    });
+    assert.equal(result.skipped, 'origin');
+    assert.equal(sent, false);
   });
 });

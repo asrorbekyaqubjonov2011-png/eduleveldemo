@@ -1,7 +1,23 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { cn } from './styles';
 import { subscribeScroll, type ScrollFrame } from '../../lib/motion/scrollEngine';
 import { DURATION, EASE } from '../../lib/motion/tokens';
+
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+function watchMotionPreference(onChange: () => void) {
+  const media = window.matchMedia(REDUCED_MOTION);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
+function useStaticMotion() {
+  return useSyncExternalStore(
+    watchMotionPreference,
+    () => window.matchMedia(REDUCED_MOTION).matches || typeof IntersectionObserver === 'undefined',
+    () => false,
+  );
+}
 
 /* =========================================================================
    REVEAL — the entrance is driven globally by ScrollReveals (data-reveal).
@@ -77,13 +93,7 @@ export const SplitText: React.FC<SplitTextProps> = ({
 }) => {
   const ref = useRef<HTMLElement | null>(null);
   const [visible, setVisible] = useState(!onScroll);
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(mq.matches);
-  }, []);
+  const reduced = useStaticMotion();
 
   useEffect(() => {
     if (!onScroll || reduced) return;
@@ -210,19 +220,16 @@ export const Counter: React.FC<CounterProps> = ({
   const ref = useRef<HTMLSpanElement | null>(null);
   const [display, setDisplay] = useState(0);
   const [started, setStarted] = useState(false);
+  const reduced = useStaticMotion();
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDisplay(value);
-      return;
-    }
+    if (reduced || started) return;
     const node = ref.current;
     if (!node) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !started) {
+          if (entry.isIntersecting) {
             setStarted(true);
             observer.unobserve(entry.target);
           }
@@ -232,10 +239,10 @@ export const Counter: React.FC<CounterProps> = ({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [value, started]);
+  }, [reduced, started]);
 
   useEffect(() => {
-    if (!started) return;
+    if (reduced || !started) return;
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
@@ -247,12 +254,12 @@ export const Counter: React.FC<CounterProps> = ({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [started, value, duration]);
+  }, [reduced, started, value, duration]);
 
   return (
     <span ref={ref} className={className}>
       {prefix}
-      {display.toLocaleString(undefined, {
+      {(reduced ? value : display).toLocaleString(undefined, {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
       })}

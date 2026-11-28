@@ -24,7 +24,7 @@ export interface UploadOptions {
   /** Who uploaded the file (used for private files). */
   ownerId?: string;
   /** Private files (receipts) are served only to the owner and the uploader. */
-  visibility?: 'public' | 'private';
+  visibility?: 'public' | 'private' | 'book';
 }
 
 /** Detects the image type from its first bytes, so a renamed file cannot pass as an image. */

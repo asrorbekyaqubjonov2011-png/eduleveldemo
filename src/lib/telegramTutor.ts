@@ -25,18 +25,13 @@ export async function answerTelegramQuestion(chatId: string, question: string): 
   if (!lim.allowed) return { ok: false, reason: 'limit' };
   const q = question.trim().slice(0, 1000);
   if (!q) return { ok: false, reason: 'empty' };
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('timeout')), DEADLINE_MS);
-  });
+  const signal = AbortSignal.timeout(DEADLINE_MS);
   try {
-    const text = await Promise.race([executeUniversalAi({ task: 'quick_qa', systemInstruction: SYSTEM, prompt: q, temperature: 0.4, maxOutputTokens: 700 }), deadline]);
+    const text = await executeUniversalAi({ task: 'quick_qa', systemInstruction: SYSTEM, prompt: q, temperature: 0.4, maxOutputTokens: 450, signal });
     const clean = String(text || '').replace(/[*_`#]/g, '').trim();
     if (!clean) return { ok: false, reason: 'empty' };
     return { ok: true, text: clean.slice(0, TUTOR_REPLY_MAX) };
   } catch {
     return { ok: false, reason: 'error' };
-  } finally {
-    if (timer) clearTimeout(timer);
   }
 }

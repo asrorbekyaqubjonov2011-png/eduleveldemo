@@ -29,7 +29,7 @@ export function scoreAnswers(questions: QuestionRow[], answers: Record<string, n
 export function levelForPercent(percent: number, rules: GradingRule[]): { level: string | null; certificate: boolean } {
   if (!Number.isFinite(percent)) return { level: null, certificate: false };
   for (const r of rules) {
-    if (typeof r.min !== 'number' || typeof r.max !== 'number' || typeof r.level !== 'string') continue;
+    if (!r || typeof r.min !== 'number' || typeof r.max !== 'number' || typeof r.level !== 'string') continue;
     if (percent >= r.min && percent <= r.max) return { level: r.level, certificate: r.certificate === true };
   }
   return { level: null, certificate: false };
@@ -40,6 +40,9 @@ export function validateGradingRules(rules: unknown): { ok: true; rules: Grading
   if (!Array.isArray(rules)) return { ok: false, error: 'Baholash qoidalari ro‘yxat bo‘lishi kerak.' };
   const clean: GradingRule[] = [];
   for (const raw of rules) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { ok: false, error: 'Har bir baholash qoidasi obyekt bo‘lishi kerak.' };
+    }
     const r = raw as Partial<GradingRule>;
     if (typeof r.min !== 'number' || typeof r.max !== 'number' || !Number.isFinite(r.min) || !Number.isFinite(r.max)) {
       return { ok: false, error: 'Har bir qoidada min va max raqam bo‘lishi kerak.' };

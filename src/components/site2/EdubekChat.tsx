@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, BookOpen, Check, ClipboardList, Copy, Download, MessageSquare, Mic, MoreHorizontal, Paperclip, Pencil, Plus, RefreshCw, Search, Smile, Sparkles, Square, Trash2, Volume2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
@@ -119,10 +119,14 @@ export const EdubekChat: React.FC = () => {
   const [speakingNow, setSpeakingNow] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
-  const voiceOnRef = useRef(false);
-  useEffect(() => {
-    voiceOnRef.current = voiceOn;
-  }, [voiceOn]);
+  const speechRun = useRef<{ cancelled: boolean } | null>(null);
+  const stopReading = useCallback(() => {
+    if (!speechRun.current) return;
+    speechRun.current.cancelled = true;
+    speechRun.current = null;
+    stopSpeech();
+  }, []);
+  useEffect(() => stopReading, [stopReading]);
   const [talking, setTalking] = useState(false);
   const [copiedId, setCopiedId] = useState('');
   const abortRef = useRef<AbortController | null>(null);
@@ -140,6 +144,17 @@ export const EdubekChat: React.FC = () => {
   const animated = eduSettings.animations !== false && localSettings.animations;
   const eduFlag = (key: 'files' | 'stickers' | 'voiceNotes') => eduSettings[key] !== false;
   const voiceNoteRef = useRef<{ rec: MediaRecorder; stream: MediaStream; chunks: Blob[]; sr: any; text: () => string; startedAt: number } | null>(null);
+  const voiceNoteGeneration = useRef(0);
+  useEffect(() => () => {
+    voiceNoteGeneration.current++;
+    const note = voiceNoteRef.current;
+    voiceNoteRef.current = null;
+    if (!note) return;
+    note.rec.onstop = null;
+    try { if (note.rec.state !== 'inactive') note.rec.stop(); } catch { /* recorder already closed */ }
+    try { note.sr?.abort(); } catch { /* recognition already closed */ }
+    note.stream.getTracks().forEach((track) => track.stop());
+  }, []);
   const fileRef = useRef<HTMLInputElement | null>(null);
   // The "more" menu closes on Escape and on any click outside it.
   useEffect(() => {
@@ -307,17 +322,29 @@ export const EdubekChat: React.FC = () => {
 
   /** Reads a reply aloud in Edubek's voice (Gemini TTS, browser voice as fallback), sentence by sentence. */
   const speakText = (text: string) => {
-    stopSpeech();
+    stopReading();
+    setSpeakingNow(false);
     const clean = text.replace(/[*#`>_~|-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1200);
     if (!clean) return;
     const sentences = clean.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [clean];
-    setSpeakingNow(true);
+    const run = { cancelled: false };
+    speechRun.current = run;
     void (async () => {
-      for (const sentence of sentences) {
-        if (!voiceOnRef.current) break;
-        await speakSentence(sentence, moodState.tone);
+      try {
+        for (const sentence of sentences) {
+          if (run.cancelled) break;
+          await speakSentence(sentence, moodState.tone, (playing) => {
+            if (!run.cancelled) setSpeakingNow(playing);
+          });
+        }
+      } catch {
+        if (!run.cancelled) setError('Ovozni ijro etib bo‘lmadi. Qayta urinib ko‘ring.');
+      } finally {
+        if (speechRun.current === run) {
+          speechRun.current = null;
+          setSpeakingNow(false);
+        }
       }
-      setSpeakingNow(false);
     })();
   };
 
@@ -348,8 +375,13 @@ export const EdubekChat: React.FC = () => {
   };
 
   useEffect(() => () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    recRef.current?.stop?.();
+    abortRef.current?.abort();
+    const recognition = recRef.current;
+    if (!recognition) return;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch { /* already closed */ }
   }, []);
 
   // Mood follows the conversation: listening, thinking, speaking, praise or a problem.
@@ -424,7 +456,7 @@ export const EdubekChat: React.FC = () => {
   };
 
   /** One spoken turn: written into the saved conversation like any other message, in short spoken-English style. */
-  const talkTurn = async (text: string, onPiece: (soFar: string) => void): Promise<TalkResult> => {
+  const talkTurn = async (text: string, onPiece: (soFar: string) => void, signal: AbortSignal): Promise<TalkResult> => {
     if (!threads) return { ok: false, message: 'Suhbat hali yuklanmadi.' };
     const threadId = ensureThread();
     const current = threads.find((t) => t.id === threadId) ?? null;
@@ -439,7 +471,7 @@ export const EdubekChat: React.FC = () => {
         started = true;
         appendMessage(threadId, { id: replyId, sender: 'ai', text: soFar, timestamp: now() });
       } else update((list) => list.map((t) => (t.id === threadId ? { ...t, messages: t.messages.map((m) => (m.id === replyId ? { ...m, text: soFar } : m)) } : t)));
-    }).catch(() => ({ ok: false as const, message: 'Server bilan bog‘lanib bo‘lmadi.' }));
+    }, signal).catch(() => ({ ok: false as const, message: 'Server bilan bog‘lanib bo‘lmadi.' }));
     if (res.ok) {
       if (!started) appendMessage(threadId, { id: replyId, sender: 'ai', text: res.text, timestamp: now() });
       else update((list) => list.map((t) => (t.id === threadId ? { ...t, messages: t.messages.map((m) => (m.id === replyId ? { ...m, text: res.text } : m)) } : t)));
@@ -520,8 +552,14 @@ export const EdubekChat: React.FC = () => {
   /** Voice note: records the voice; the speech is turned into text and Edubek answers it. */
   const startVoiceNote = async () => {
     if (voiceNoteRef.current || busy) return;
+    const generation = ++voiceNoteGeneration.current;
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (generation !== voiceNoteGeneration.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const chunks: Blob[] = [];
       const rec = new MediaRecorder(stream);
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
@@ -539,7 +577,10 @@ export const EdubekChat: React.FC = () => {
       voiceNoteRef.current = { rec, stream, chunks, sr, text: () => heard.trim(), startedAt: Date.now() };
       setRecording(true);
     } catch {
-      setError('Mikrofonga ruxsat bering, so‘ng ovozli xabar yuboriladi.');
+      stream?.getTracks().forEach((track) => track.stop());
+      if (generation === voiceNoteGeneration.current) {
+        setError('Mikrofonga ruxsat bering, so‘ng ovozli xabar yuboriladi.');
+      }
     }
   };
   const stopVoiceNote = () => {
@@ -547,14 +588,17 @@ export const EdubekChat: React.FC = () => {
     if (!cur) return;
     voiceNoteRef.current = null;
     setRecording(false);
+    const generation = voiceNoteGeneration.current;
     cur.rec.onstop = async () => {
       cur.stream.getTracks().forEach((t) => t.stop());
       try { cur.sr?.stop(); } catch { /* already stopped */ }
       await new Promise((r) => setTimeout(r, 400));
+      if (generation !== voiceNoteGeneration.current) return;
       const blob = new Blob(cur.chunks, { type: cur.rec.mimeType || 'audio/webm' });
       const seconds = Math.max(1, Math.round((Date.now() - cur.startedAt) / 1000));
       const heard = cur.text();
       const url = await uploadChatFile(blob, `ovoz-${Date.now()}.webm`).catch(() => null);
+      if (generation !== voiceNoteGeneration.current) return;
       if (!url) return setError('Ovozli xabarni yuklab bo‘lmadi.');
       if (heard.length >= 3) {
         void send(heard, 'chat', undefined, { shown: heard, kind: 'voice', mediaUrl: url, durationSec: seconds });
@@ -751,7 +795,7 @@ export const EdubekChat: React.FC = () => {
             >
               <MessageSquare className="mr-1.5 h-3.5 w-3.5" /> Suhbatlar
             </button>
-            <EdubekAvatar mood={mood} size={48} typing={input.length > 0} animated={animated} />
+            <EdubekAvatar mood={mood} size={48} typing={input.length > 0} animated={animated} audioPlaying={speakingNow} />
             <div className="min-w-0 flex-1">
               <h2 className="text-[15px] font-bold text-ink dark:text-white">Edubek</h2>
               <p className="truncate text-[12px] text-ink-muted dark:text-stone-400">
@@ -761,7 +805,7 @@ export const EdubekChat: React.FC = () => {
             {edubekOn('edubekVoice') ? (
             <button
               type="button"
-              onClick={() => setTalking(true)}
+              onClick={() => { stopReading(); setSpeakingNow(false); setTalking(true); }}
               className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-[13px] font-semibold text-white transition-transform hover:-translate-y-px dark:bg-white dark:text-ink"
             >
               <Mic className="h-4 w-4" /> Suhbat
@@ -900,7 +944,7 @@ export const EdubekChat: React.FC = () => {
             <p className="text-[13px] text-ink-muted dark:text-stone-400">Suhbatlar yuklanmoqda…</p>
           ) : !active || active.messages.length === 0 ? (
             <div className="animate-msg flex min-h-full flex-col items-center justify-center gap-4 py-4 text-center">
-              <EdubekAvatar mood={mood} size={96} animated={animated} />
+              <EdubekAvatar mood={mood} size={96} animated={animated} audioPlaying={speakingNow} />
               <div className="space-y-1.5">
                 <p className="text-[17px] font-bold text-ink dark:text-white">
                   {activeLesson ? 'Dars bo‘yicha savol bering' : (eduSettings.greeting || 'Salom! Nimani o‘rganamiz?')}
@@ -1083,7 +1127,7 @@ export const EdubekChat: React.FC = () => {
               onClick={() => {
                 const next = !voiceOn;
                 setVoiceOn(next);
-                if (!next) stopSpeech();
+                if (!next) { stopReading(); setSpeakingNow(false); }
               }}
               aria-pressed={voiceOn}
               className={cn('flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors', voiceOn ? 'border-[#e8457a] bg-[#e8457a]/10 text-[#b82a5c]' : 'border-line/80 text-ink-muted hover:text-ink dark:border-white/10 dark:text-stone-300')}

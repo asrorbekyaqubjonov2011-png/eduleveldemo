@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { notifyIndexNow } from '@/src/lib/indexnow';
 import { getSiteUrl } from '@/src/components/seo/siteUrl';
-import { getDatabase, logAudit, withDatabase } from '@/src/lib/dbStore';
+import { afterDatabaseCommit, getDatabase, logAudit, withDatabase } from '@/src/lib/dbStore';
 import { requireOwner } from '@/src/lib/auth/guards';
 import { SEO_PAGES } from '@/src/lib/seo/pages';
 import { bodyText, normalizeRecord, validateRecord, type OtherPage, type SeoRecord } from '@/src/lib/seo/records';
@@ -67,8 +67,11 @@ async function handlePost(req: NextRequest) {
   else list.push(rec);
   logAudit('owner', 'seo_page_' + (rec.status === 'published' ? 'publish' : 'save'), 'seo_page', `/${rec.id}: ${rec.status}`);
   refresh(rec.id);
-  // A published page, or one that was just taken down, is announced to IndexNow (free; not an indexing guarantee).
-  if ((rec.status === 'published' && !check.errors.length) || wasPublished) notifyIndexNow('/' + rec.id, getSiteUrl(), rec.status === 'published' ? 'published' : 'unpublished');
+  const wasIndexable = wasPublished && !previous?.noindex;
+  const indexable = rec.status === 'published' && !rec.noindex;
+  if (indexable || wasIndexable) {
+    afterDatabaseCommit(() => notifyIndexNow('/' + rec.id, getSiteUrl(), indexable ? 'published' : 'unpublished'));
+  }
   return NextResponse.json({ ...view(list), saved: rec.id });
 }
 
@@ -83,7 +86,9 @@ async function handleDelete(req: NextRequest) {
   db.seoPages = list.filter((r) => r !== target);
   logAudit('owner', 'seo_page_delete', 'seo_page', `/${id}`);
   refresh(id);
-  if (target.status === 'published') notifyIndexNow('/' + id, getSiteUrl(), 'deleted');
+  if (target.status === 'published' && !target.noindex) {
+    afterDatabaseCommit(() => notifyIndexNow('/' + id, getSiteUrl(), 'deleted'));
+  }
   return NextResponse.json(view(db.seoPages));
 }
 

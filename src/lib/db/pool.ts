@@ -22,7 +22,7 @@ export function getPool(): Pool {
   if (!url) {
     throw new Error('DATABASE_URL is not set. Add the Supabase connection string in the environment.');
   }
-  const local = /localhost|127\.0\.0\.1/.test(url);
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname);
   const ca = process.env.DATABASE_SSL_CA;
   pool = new Pool({
     connectionString: url,

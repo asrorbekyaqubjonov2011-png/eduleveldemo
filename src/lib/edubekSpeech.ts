@@ -2,120 +2,113 @@ import { makeUtterance, canSpeak } from './edubekVoice';
 import { getEdubekSettings } from './edubekSettings';
 import { markVoice } from './edubekVoiceTiming';
 
-let current: HTMLAudioElement | null = null;
+let generation = 0;
 let disabledUntil = 0;
-// Server voice requests still on their way; stopSpeech() aborts them so a cancelled reply costs nothing more.
 const inflight = new Set<AbortController>();
+const stops = new Set<() => void>();
 
-/**
- * Speaks one sentence in Edubek's voice: Gemini TTS (Uzbek and English) through the server, and the
- * browser's own voice when that is unavailable. Resolves when the sentence has finished.
- */
-// Audio requests started ahead of time (see prefetchSentence), keyed by mood and text.
-const prefetched = new Map<string, Promise<Blob | null>>();
-
-function requestAudio(clean: string, mood?: string): Promise<Blob | null> {
-  if (getEdubekSettings().voice === 'browser') return Promise.resolve(null);
-  return requestGemini(clean, mood);
+// Browser voice is the zero-cost, low-latency default. No speculative server requests.
+export function prefetchSentence(_text: string, _mood?: string): void {
+  // Intentionally no-op: do not spend quota on a sentence that may be cancelled.
+  void _text; void _mood;
 }
 
-function requestGemini(clean: string, mood?: string): Promise<Blob | null> {
-  const controller = new AbortController();
-  inflight.add(controller);
-  markVoice('tts_request', clean.slice(0, 40));
-  return fetch('/api/ai-tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: clean, mood }),
-    signal: controller.signal
-  })
-    .then(async (res) => {
-      // 503 means the server voice is off or unavailable (zero-cost default): stop asking for a while; the device voice speaks.
-      if (res.status === 503) {
-        disabledUntil = Date.now() + 30 * 60_000;
-        return null;
-      }
-      if (!res.ok || !(res.headers.get('content-type') || '').includes('audio')) return null;
-      const blob = await res.blob();
-      markVoice('tts_ready', String(blob.size));
-      return blob;
-    })
-    .catch(() => null)
-    .finally(() => inflight.delete(controller));
+async function requestGemini(text: string, mood?: string): Promise<Blob | null> {
+  if (Date.now() < disabledUntil) return null;
+  const ctrl = new AbortController();
+  inflight.add(ctrl);
+  const timer = setTimeout(() => ctrl.abort(), 1200);
+  try {
+    markVoice('tts_request', 'server');
+    const res = await fetch('/api/ai-tts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, mood }), signal: ctrl.signal
+    });
+    if (res.status === 503) disabledUntil = Date.now() + 30 * 60_000;
+    if (!res.ok || !(res.headers.get('content-type') || '').includes('audio')) return null;
+    const blob = await res.blob();
+    markVoice('tts_ready', String(blob.size));
+    return blob.size ? blob : null;
+  } catch { return null; }
+  finally { clearTimeout(timer); inflight.delete(ctrl); }
 }
 
-/**
- * Starts the voice request for a sentence that will be spoken soon, so it is ready when its turn comes.
- * The next sentence is requested while the current one plays.
- */
-export function prefetchSentence(text: string, mood?: string): void {
-  const clean = text.trim();
-  if (!clean || Date.now() < disabledUntil || getEdubekSettings().voice === 'browser') return;
-  const key = `${mood || ''}|${clean}`;
-  if (prefetched.has(key)) return;
-  prefetched.set(key, requestAudio(clean, mood));
-  if (prefetched.size > 40) prefetched.delete(prefetched.keys().next().value as string);
-}
-
-/** With the automatic voice, a sentence that is not ready after this time is spoken with the browser voice. */
-const FAST_VOICE_MS = 1200;
-const LATE = Symbol('late');
-
-export async function speakSentence(text: string, mood?: string): Promise<void> {
-  const clean = text.trim();
-  if (!clean) return;
-  const settings = getEdubekSettings();
-  if (Date.now() >= disabledUntil && settings.voice !== 'browser') {
-    try {
-      const key = `${mood || ''}|${clean}`;
-      const pending = prefetched.get(key) ?? requestAudio(clean, mood);
-      prefetched.delete(key);
-      // The automatic voice must not keep the student waiting: a late sentence is spoken by the browser voice,
-      // and the server voice for it is dropped. The explicit Gemini choice always waits for its own voice.
-      const got: Blob | null | typeof LATE =
-        settings.voice === 'auto'
-          ? await Promise.race([pending, new Promise<typeof LATE>((resolve) => setTimeout(() => resolve(LATE), FAST_VOICE_MS))])
-          : await pending;
-      if (got instanceof Blob) {
-        const url = URL.createObjectURL(got);
-        await new Promise<void>((resolve) => {
-          const a = new Audio(url);
-          current = a;
-          a.addEventListener('playing', () => markVoice('audio_play', 'server'), { once: true });
-          a.onended = () => resolve();
-          a.onerror = () => resolve();
-          void a.play().catch(() => resolve());
-        });
-        URL.revokeObjectURL(url);
-        return;
-      }
-      if (got === null) {
-        // Not configured or refused: stop asking for a while, and use the browser voice meanwhile.
-        disabledUntil = Date.now() + 60_000;
-      }
-    } catch {
-      disabledUntil = Date.now() + 60_000;
-    }
-  }
-  if (!canSpeak()) return;
-  const u = await makeUtterance(clean, mood);
-  await new Promise<void>((resolve) => {
-    u.onstart = () => markVoice('audio_play', 'browser');
-    u.onend = () => resolve();
-    u.onerror = () => resolve();
-    window.speechSynthesis.speak(u);
+function playAudio(blob: Blob, text: string, onPlayback?: (playing: boolean) => void): Promise<boolean> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      stops.delete(stop);
+      audio.onended = null; audio.onerror = null; audio.onplaying = null;
+      onPlayback?.(false);
+      audio.pause();
+      audio.removeAttribute('src');
+      URL.revokeObjectURL(url);
+      resolve(ok);
+    };
+    const stop = () => finish(false);
+    const timer = setTimeout(stop, Math.max(8000, Math.min(90000, text.length * 130 + 4000)));
+    stops.add(stop);
+    audio.onplaying = () => {
+      markVoice('audio_play', 'server');
+      onPlayback?.(true);
+    };
+    audio.onended = () => finish(true);
+    audio.onerror = stop;
+    void audio.play().catch(stop);
   });
 }
 
-/** Stops whatever Edubek is saying. */
-export function stopSpeech(): void {
-  for (const c of inflight) c.abort();
-  inflight.clear();
-  prefetched.clear();
-  if (current) {
-    current.pause();
-    current = null;
+export async function speakSentence(text: string, mood?: string, onPlayback?: (playing: boolean) => void, onWord?: (letters: number) => void): Promise<void> {
+  const clean = text.trim();
+  if (!clean) return;
+  const epoch = generation;
+  // Explicit server voice still requires the server's own opt-in; auto never requests it.
+  if (getEdubekSettings().voice === 'gemini') {
+    const blob = await requestGemini(clean, mood);
+    if (epoch !== generation) return;
+    if (blob && await playAudio(blob, clean, onPlayback)) return;
   }
-  if (canSpeak()) window.speechSynthesis.cancel();
+  if (epoch !== generation || !canSpeak()) return;
+  markVoice('tts_request', 'browser');
+  const u = await makeUtterance(clean, mood);
+  if (epoch !== generation) return;
+  markVoice('tts_ready', 'browser');
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      stops.delete(stop);
+      u.onend = null; u.onerror = null; u.onstart = null; u.onboundary = null;
+      onPlayback?.(false);
+      resolve();
+    };
+    const stop = () => { finish(); window.speechSynthesis.cancel(); };
+    const timer = setTimeout(stop, Math.max(8000, Math.min(90000, clean.length * 130 + 4000)));
+    stops.add(stop);
+    u.onstart = () => {
+      markVoice('audio_play', 'browser');
+      onPlayback?.(true);
+    };
+    u.onboundary = (event) => {
+      if (event.name === 'word') onWord?.(event.charLength || clean.slice(event.charIndex).match(/^\S+/)?.[0].length || 1);
+    };
+    u.onend = finish;
+    u.onerror = finish;
+    try { window.speechSynthesis.speak(u); } catch { finish(); }
+  });
 }
 
+export function stopSpeech(): void {
+  generation++;
+  for (const ctrl of inflight) ctrl.abort();
+  inflight.clear();
+  for (const stop of [...stops]) stop();
+  if (canSpeak()) window.speechSynthesis.cancel();
+}

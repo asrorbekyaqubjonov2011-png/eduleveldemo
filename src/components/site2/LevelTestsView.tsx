@@ -265,7 +265,7 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
   const [state, setState] = useState<AttemptState | null>(null);
   const [status, setStatus] = useState<'loading' | 'in_progress' | 'blocked' | 'done' | 'error'>('loading');
   const [result, setResult] = useState<Result | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(Date.now);
   const [index, setIndex] = useState(0);
   const [errMsg, setErrMsg] = useState('');
   const [saveWarn, setSaveWarn] = useState('');
@@ -354,6 +354,7 @@ const AttemptRunner: React.FC<{ attemptId: string; test: TestRow; onExit: () => 
     } else {
       setResult(data.result || null);
       setStatus('done');
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     }
   }, [attemptId, flushAnswers]);
 

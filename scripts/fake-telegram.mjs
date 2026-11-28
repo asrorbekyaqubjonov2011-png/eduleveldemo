@@ -31,7 +31,7 @@ http.createServer(async (req, res) => {
     if (err) { calls.push({ method: method + '(html-rejected)', body: payload }); res.setHeader('content-type','application/json'); return res.end(JSON.stringify({ ok: false, error_code: 400, description: "Bad Request: can't parse entities: " + err })); }
   }
   // Like Telegram when a button style is not accepted: the bot must fall back to plain buttons.
-  if (payload && JSON.stringify(payload).includes('"style"')) { calls.push({ method: method + '(style-rejected)', body: payload }); res.setHeader('content-type','application/json'); return res.end(JSON.stringify({ ok: false, description: 'Bad Request: unsupported button style' })); }
+  if (payload && JSON.stringify(payload).includes('"style"')) { calls.push({ method: method + '(style-rejected)', body: payload }); res.setHeader('content-type','application/json'); return res.end(JSON.stringify({ ok: false, error_code: 400, description: 'Bad Request: unsupported button style' })); }
   const entry = { method, body: payload };
   calls.push(entry);
   res.setHeader('content-type', 'application/json');

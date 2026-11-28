@@ -1,0 +1,69 @@
+{
+  "scope": "isolated HTTPS fixture",
+  "stages": [
+    {
+      "unavailable": {},
+      "serverTimingP95": {
+        "queue": 0,
+        "pool": 26,
+        "cache": 27,
+        "handler": 15,
+        "persist": 14,
+        "snapshot": 34,
+        "query": 25
+      },
+      "serverCpuMs": 320,
+      "concurrency": 4,
+      "requests": 28,
+      "statuses": {
+        "200": 24,
+        "401": 4
+      },
+      "p50Ms": 27,
+      "p95Ms": 134,
+      "requestsPerSecond": 89
+    },
+    {
+      "unavailable": {},
+      "serverTimingP95": {
+        "queue": 2,
+        "pool": 107,
+        "cache": 33,
+        "handler": 61,
+        "persist": 2
+      },
+      "serverCpuMs": 500,
+      "concurrency": 12,
+      "requests": 84,
+      "statuses": {
+        "200": 72,
+        "401": 12
+      },
+      "p50Ms": 42,
+      "p95Ms": 153,
+      "requestsPerSecond": 186.9
+    },
+    {
+      "unavailable": {},
+      "serverTimingP95": {
+        "queue": 35,
+        "pool": 1,
+        "cache": 42,
+        "handler": 59,
+        "persist": 1
+      },
+      "serverCpuMs": 740,
+      "concurrency": 24,
+      "requests": 168,
+      "statuses": {
+        "200": 144,
+        "401": 24
+      },
+      "p50Ms": 65,
+      "p95Ms": 160,
+      "requestsPerSecond": 265.5
+    }
+  ],
+  "rssPeakKiB": 257852,
+  "recovery": 200
+}

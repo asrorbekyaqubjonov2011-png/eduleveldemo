@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, type User as FirebaseUser } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from '@firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, type User as FirebaseUser } from '@firebase/auth';
 
 /**
  * Firebase is used only for "Google bilan kirish". The web config comes from public NEXT_PUBLIC_FIREBASE_* variables.

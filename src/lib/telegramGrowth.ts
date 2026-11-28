@@ -15,7 +15,7 @@ import {
   setReferralBundles
 } from './telegramStore';
 import { NEED_LINK, aiToHtml, card, dateUz, esc, money, num, uzText } from './telegramFormat';
-import { chatWithAiTutor, evaluateSpeakingWithAi, executeUniversalAi, pickGeminiModelsFast, raceModelAnswer, streamTutorAnswer, translate3LevelWithAi } from './universalAi';
+import { evaluateSpeakingWithAi, executeUniversalAi, pickGeminiModelsFast, streamTutorAnswer, translate3LevelWithAi } from './universalAi';
 
 /**
  * The bot's growth and learning features that need the site's data: rewards for referrals, quiz questions,
@@ -182,6 +182,7 @@ export async function transcribeVoice(bytes: Buffer, mimeType: string, apiKey: s
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+    signal: AbortSignal.timeout(15_000),
     body: JSON.stringify({
       contents: [
         {
@@ -195,7 +196,7 @@ export async function transcribeVoice(bytes: Buffer, mimeType: string, apiKey: s
   });
   if (!res.ok) throw new Error(`Ovozni matnga o‘girib bo‘lmadi (${res.status})`);
   const json: any = await res.json();
-  const text = (json?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || '').join('').trim();
+  const text = (json?.candidates?.[0]?.content?.parts || []).filter((p: any) => !p?.thought).map((p: any) => p?.text || '').join('').trim();
   return text;
 }
 
@@ -226,27 +227,26 @@ const AI_BOT_DEADLINE_MS = 30_000;
  */
 export async function askTutor(question: string, studentName: string): Promise<string> {
   const key = aiKey();
-  if (!key) return 'AI xizmati hozircha ulanmagan. Ustoz bilan bog‘laning.';
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<string>((resolve) => {
-    timer = setTimeout(() => resolve(''), AI_BOT_DEADLINE_MS);
-  });
+  if (!key && availableFallbacks(process.env).length === 0) return 'AI xizmati hozircha ulanmagan. Ustoz bilan bog‘laning.';
   try {
-    const answer = await Promise.race([
-      streamTutorAnswer({ userMessage: question.slice(0, 1000), history: [], studentName, vipTier: 'individual', mode: 'tutor', apiKey: key } as any, () => undefined),
-      deadline
-    ]);
+    const answer = await streamTutorAnswer({ userMessage: question.slice(0, 1000), history: [], studentName, vipTier: 'individual', mode: 'tutor', apiKey: key } as any, () => undefined, AbortSignal.timeout(AI_BOT_DEADLINE_MS));
     const text = String(answer || '').trim().slice(0, 3000);
-    if (!text) return 'Javob hozircha tayyor emas. Bir oz kutib, qayta urinib ko‘ring.';
-    return aiToHtml(text);
-  } finally {
-    if (timer) clearTimeout(timer);
+    return text ? aiToHtml(text) : 'Javob hozircha tayyor emas. Bir oz kutib, qayta urinib ko‘ring.';
+  } catch {
+    return 'EduBek hozir javob bera olmadi. Birozdan keyin qayta urinib ko‘ring.';
   }
 }
 
 /** Shows "typing…" in the chat while work runs. Telegram drops the status after ~5 s, so it is sent again every 4 s. */
 export async function withTyping<T>(chatId: string, work: () => Promise<T>): Promise<T> {
-  const send = () => telegramApi('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => undefined);
+  let sending = false;
+  const send = async () => {
+    if (sending) return;
+    sending = true;
+    try { await telegramApi('sendChatAction', { chat_id: chatId, action: 'typing' }); }
+    catch { /* typing is optional */ }
+    finally { sending = false; }
+  };
   void send();
   const timer = setInterval(() => void send(), 4000);
   try {
@@ -258,7 +258,7 @@ export async function withTyping<T>(chatId: string, work: () => Promise<T>): Pro
 
 export async function wordCard(word: string): Promise<string> {
   const key = aiKey();
-  if (!key) return 'AI xizmati hozircha ulanmagan. Ustoz bilan bog‘laning.';
+  if (!key && availableFallbacks(process.env).length === 0) return 'AI xizmati hozircha ulanmagan. Ustoz bilan bog‘laning.';
   const r: any = await translate3LevelWithAi(word.slice(0, 80), key);
   const level = (x: any, name: string) => (x ? `${name}: ${x.word || ''} ${x.ipa || ''} — ${x.meaningUz || ''}`.trim() : '');
   const lines = [`📖 ${r?.englishQuery || word} (${r?.partOfSpeech || ''})`, level(r?.b1, 'B1'), level(r?.b2, 'B2'), level(r?.c1, 'C1/C2')].filter(Boolean);
@@ -450,29 +450,6 @@ export function adminTickets(db: AppDatabase): string {
   return ['🆘 Yangi murojaatlar', '', ...open.map((t, i) => `${i + 1}. ${esc(t.userName)}: ${esc(t.message.slice(0, 140))}`)].join('\n');
 }
 
-/** Approves a pending deposit with the same rules as the site's owner panel. Returns the account it credited. */
-export function approveDeposit(db: AppDatabase, id: string): { ok: boolean; message: string; user?: User } {
-  const tx = (db.depositTransactions || []).find((t) => t.id === id);
-  if (!tx) return { ok: false, message: 'Tranzaksiya topilmadi' };
-  if (tx.status !== 'pending') return { ok: false, message: 'Bu tranzaksiya allaqachon ko‘rib chiqilgan' };
-  tx.status = 'completed';
-  tx.approvedAt = new Date().toISOString();
-  const user = db.users.find((u) => u.id === tx.userId);
-  if (user) {
-    user.balance = (user.balance || 0) + tx.amount;
-    user.xp = (user.xp || 0) + Math.round(tx.amount / 1000);
-  }
-  return { ok: true, message: `${esc(tx.userName)}: ${money(tx.amount)} tasdiqlandi`, user };
-}
-
-export function rejectDeposit(db: AppDatabase, id: string): { ok: boolean; message: string } {
-  const tx = (db.depositTransactions || []).find((t) => t.id === id);
-  if (!tx) return { ok: false, message: 'Tranzaksiya topilmadi' };
-  if (tx.status !== 'pending') return { ok: false, message: 'Bu tranzaksiya allaqachon ko‘rib chiqilgan' };
-  tx.status = 'rejected';
-  return { ok: true, message: `${tx.userName}: depozit rad etildi` };
-}
-
 /** Flashcards waiting for review today, for this student. */
 export function flashcardsDueText(db: AppDatabase, user: User | undefined): string {
   if (!user) return 'Takrorlash uchun avval hisobingizni ulang: /ulash KOD';
@@ -504,29 +481,10 @@ const POST_SYSTEM = [
 export async function draftChannelPost(topic: string): Promise<string> {
   const key = aiKey();
   if (!key && availableFallbacks(process.env).length === 0) return 'AI xizmati hozircha ulanmagan. GEMINI_API_KEY yoki zaxira kalit sozlanishi kerak.';
-  const systemInstruction = POST_SYSTEM;
-  const prompt = `Mavzu: ${topic.slice(0, 300)}`;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<string>((resolve) => {
-    timer = setTimeout(() => resolve(''), AI_BOT_DEADLINE_MS);
-  });
   try {
-    // The same parallel model race as the tutor: a slow model does not hold the owner up.
-    const text = await Promise.race([
-      raceModelAnswer({
-        apiKey: key,
-        systemInstruction,
-        prompt,
-        maxTokens: 900,
-        onText: () => undefined,
-        fallback: () => executeUniversalAi({ task: 'telegram_post', apiKey: key, systemInstruction, prompt, temperature: 0.7, maxOutputTokens: 900 })
-      }),
-      deadline
-    ]);
+    const text = await executeUniversalAi({ task: 'telegram_post', apiKey: key, systemInstruction: POST_SYSTEM, prompt: `Mavzu: ${topic.slice(0, 300)}`, temperature: 0.7, maxOutputTokens: 900, signal: AbortSignal.timeout(AI_BOT_DEADLINE_MS) });
     return String(text || '').trim().slice(0, 3500) || 'Post tayyorlab bo‘lmadi. Mavzuni boshqacha yozib ko‘ring.';
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  } catch { return 'Post tayyorlab bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.'; }
 }
 
 const IDEAS_SYSTEM = [
@@ -540,26 +498,10 @@ const IDEAS_SYSTEM = [
 export async function draftChannelIdeas(): Promise<string> {
   const key = aiKey();
   if (!key && availableFallbacks(process.env).length === 0) return 'AI xizmati hozircha ulanmagan. GEMINI_API_KEY yoki zaxira kalit sozlanishi kerak.';
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<string>((resolve) => {
-    timer = setTimeout(() => resolve(''), AI_BOT_DEADLINE_MS);
-  });
   try {
-    const text = await Promise.race([
-      raceModelAnswer({
-        apiKey: key,
-        systemInstruction: IDEAS_SYSTEM,
-        prompt: 'Bu hafta uchun 5 ta kanal posti g‘oyasi.',
-        maxTokens: 600,
-        onText: () => undefined,
-        fallback: () => executeUniversalAi({ task: 'telegram_post', apiKey: key, systemInstruction: IDEAS_SYSTEM, prompt: 'Bu hafta uchun 5 ta kanal posti g‘oyasi.', temperature: 0.8, maxOutputTokens: 600 })
-      }),
-      deadline
-    ]);
+    const text = await executeUniversalAi({ task: 'telegram_post', apiKey: key, systemInstruction: IDEAS_SYSTEM, prompt: 'Bu hafta uchun 5 ta kanal posti g‘oyasi.', temperature: 0.8, maxOutputTokens: 600, signal: AbortSignal.timeout(AI_BOT_DEADLINE_MS) });
     return String(text || '').trim().slice(0, 2500) || 'G‘oyalar tayyorlab bo‘lmadi. Qayta urinib ko‘ring.';
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  } catch { return 'G‘oyalar tayyorlab bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.'; }
 }
 
 /** The idea with this number from a list made by draftChannelIdeas (lines "1. …", "2. …"). */

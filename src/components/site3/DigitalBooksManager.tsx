@@ -134,10 +134,8 @@ export const DigitalBooksManager: React.FC = () => {
       return;
     }
 
-    await createBook({
-      ...bookForm,
-      id: `book-${Date.now()}`
-    });
+    const result = await createBook(bookForm).catch(() => null);
+    if (!result?.success) { alert(result?.message || 'Kitob saqlanmadi.'); return; }
 
     setSuccessMsg(`"${bookForm.title}" kitobi muvaffaqiyatli qo‘shildi!`);
     setIsAddingBook(false);
@@ -168,17 +166,17 @@ export const DigitalBooksManager: React.FC = () => {
   const handleUpdateVipRequirement = async (bookId: string, newVipTier: VIPTier) => {
     const target = books.find(b => b.id === bookId);
     if (!target) return;
-    await createBook({
-      ...target,
-      requiredVIP: newVipTier
-    });
+    const result = await api.updateBookTier(bookId, newVipTier).catch(() => null);
+    if (!result?.success) { alert(result?.message || 'Tarif saqlanmadi.'); return; }
+    await refreshDb();
     setSuccessMsg(`"${target.title}" uchun VIP ruxsat darajasi [${newVipTier.toUpperCase()}] ga o‘zgartirildi!`);
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const handleDeleteBook = async (bookId: string, title: string) => {
     if (confirm(`"${title}" kitobini butunlay o‘chirmoqchimisiz?`)) {
-      await deleteBook(bookId);
+      const result = await deleteBook(bookId).catch(() => null);
+      if (!result?.success) { alert(result?.message || 'Kitob o‘chirilmadi.'); return; }
       setSuccessMsg(`"${title}" muvaffaqiyatli o‘chirildi!`);
       setTimeout(() => setSuccessMsg(''), 3000);
     }
