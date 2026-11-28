@@ -11,3 +11,4 @@
 - Sayt va Telegram depozit tasdig‘i bitta tranzaksiya qulfidan foydalanadi. Owner panel balansni saqlash oldidan ko‘rilgan summani tekshiradi. Xato va muvaffaqiyat holatlari alohida ko‘rsatiladi.
 - IndexNow preview domenidan yuborilmaydi. SEO sahifa muvaffaqiyatli saqlangandan keyingina xabar beriladi. SEO manager sinovi CI ga qo‘shildi.
 - EduBek chatidan chiqishda ovozli xabar recorderi, mikrofon track’lari va speech recognition yopiladi. Ruxsat dialogi kech qaytsa yangi ochilgan stream darhol yopiladi.
+- Mock imtihonida browser storage vaqtincha ishlamasa, mehmon identifikatori joriy sahifa davomida barqaror saqlanadi.

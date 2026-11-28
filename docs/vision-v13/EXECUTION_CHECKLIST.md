@@ -18,7 +18,7 @@
 | 14 | CEFR | INVENTORIED | CEFR Reading va Listening grading fixture | A1–B2 bo‘yicha yakuniy mashq, audio va natijalar |
 | 15 | General English | INVENTORIED | Reading grading, mashq API va General English Placement fixture | Grammatika va lug‘at bo‘yicha to‘liq ssenariylar |
 | 16 | Placement Test | LOCAL_VERIFIED | 44 lokal API, 17 brauzer, XLSX/DOCX, autosave retry va oxirgi urinish expiry | Production smoke release bilan bog‘liq |
-| 17 | Mock Test | IMPLEMENTED | Draft, sessiya va grading uchun fixture | Brauzer, expiry va ochiq/cheklangan testlar |
+| 17 | Mock Test | IMPLEMENTED | Draft, sessiya, grading va storage cheklangan mehmon identifikatori unit sinovi | Brauzer, expiry va ochiq/cheklangan testlar |
 | 18 | Kutubxona | IMPLEMENTED | Tarifni joyida yangilash va serverda kontentni cheklash | Tarixiy tashqi public PDF URL va to‘liq brauzer oqimi |
 | 19 | Video darslar | INVENTORIED | 15 lesson API tekshiruvi | Haqiqiy YouTube va video playback |
 | 20 | VIP tizimi | IMPLEMENTED | Parallel VIP xaridi, Edu Coin mukofoti, depozit qarori va manual balansdagi stale update sinovlari | Barcha tarif va moliya amallari bo‘yicha yakuniy qamrov |
