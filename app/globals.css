@@ -1798,6 +1798,14 @@ html.perf-lite .vision-head,html[data-scrolling] .vision-head{animation-play-sta
 }
 
 .vision-orbit { border-color: #7799f495; }
+@media (max-width: 600px) {
+  .vision-actions a, .vision-actions button {
+    padding-inline: 10px;
+    text-wrap: balance;
+  }
+  .vision-actions svg { flex-shrink: 0; }
+}
+
 .vision-float { border-radius: 20px; }
 .vision-path { min-height: 72px; }
 .vision-path small, .vision-float small { color: var(--vision-muted); }

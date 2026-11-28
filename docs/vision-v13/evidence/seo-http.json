@@ -1,0 +1,695 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "canonical": "https://edulevel.uz",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ingliz-tili-darslari",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ingliz-tili-darslari",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts-tayyorgarlik",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts-tayyorgarlik",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr-tayyorgarlik",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr-tayyorgarlik",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/c1-yol-xaritasi",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/c1-yol-xaritasi",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/listening",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/listening",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/reading",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/reading",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/writing",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/writing",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/speaking",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/speaking",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/mock-test",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/mock-test",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/band-score",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/band-score",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/mock-test",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/mock-test",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/multilevel",
+    "status": 200,
+    "canonical": "https://edulevel.uz/multilevel",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/speaking",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/speaking",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/level-test",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/level-test",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/edubek-ai",
+    "status": 200,
+    "canonical": "https://edulevel.uz/edubek-ai",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/about",
+    "status": 200,
+    "canonical": "https://edulevel.uz/about",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/contact",
+    "status": 200,
+    "canonical": "https://edulevel.uz/contact",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/terms",
+    "status": 200,
+    "canonical": "https://edulevel.uz/terms",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/editorial-policy",
+    "status": 200,
+    "canonical": "https://edulevel.uz/editorial-policy",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/privacy",
+    "status": 200,
+    "canonical": "https://edulevel.uz/privacy",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/ielts-nol-dan-tayyorlanish",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/ielts-nol-dan-tayyorlanish",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/cefr-darajalari-tushuntirish",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/cefr-darajalari-tushuntirish",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/ielts-writing-task-2-tuzilishi",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/ielts-writing-task-2-tuzilishi",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/ingliz-tili-zamonlari-qisqacha",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/ingliz-tili-zamonlari-qisqacha",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/mock-test-qanday-ishlatiladi",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/mock-test-qanday-ishlatiladi",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/present-simple",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/present-simple",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/present-continuous",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/present-continuous",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/past-simple",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/past-simple",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/present-perfect",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/present-perfect",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/future-forms",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/future-forms",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/conditionals",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/conditionals",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/passive-voice",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/passive-voice",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/articles",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/articles",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/modal-verbs",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/modal-verbs",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/prepositions-time-place",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/prepositions-time-place",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/comparatives-superlatives",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/comparatives-superlatives",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/past-continuous",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/past-continuous",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/past-perfect",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/past-perfect",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/reported-speech",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/reported-speech",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/relative-clauses",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/relative-clauses",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/gerunds-infinitives",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/gerunds-infinitives",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/quantifiers",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/quantifiers",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/question-forms",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/question-forms",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/phrasal-verbs",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/phrasal-verbs",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/linking-words",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/linking-words",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/family-relationships",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/family-relationships",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/education",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/education",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/health",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/health",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/travel",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/travel",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/environment",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/environment",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/work-careers",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/work-careers",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/technology",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/technology",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/food-cooking",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/food-cooking",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/shopping-money",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/shopping-money",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/hobbies-free-time",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/hobbies-free-time",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/writing/task-1-graphs",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/writing/task-1-graphs",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/writing/task-2-opinion-essay",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/writing/task-2-opinion-essay",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/speaking/part-1-questions",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/speaking/part-1-questions",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/speaking/part-2-cue-card",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/speaking/part-2-cue-card",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/speaking/part-3-discussion",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/speaking/part-3-discussion",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/reading/true-false-not-given",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/reading/true-false-not-given",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/ielts/listening/form-and-map-completion",
+    "status": 200,
+    "canonical": "https://edulevel.uz/ielts/listening/form-and-map-completion",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/pronunciation/word-stress",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/pronunciation/word-stress",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/pronunciation/common-mistakes-uzbek-speakers",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/pronunciation/common-mistakes-uzbek-speakers",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/study-plan/ielts-8-week",
+    "status": 200,
+    "canonical": "https://edulevel.uz/study-plan/ielts-8-week",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/study-plan/english-30-days",
+    "status": 200,
+    "canonical": "https://edulevel.uz/study-plan/english-30-days",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/city-housing",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/city-housing",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/weather-seasons",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/weather-seasons",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/emotions-personality",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/emotions-personality",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/media-news",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/media-news",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/academic-word-list",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/academic-word-list",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/present-perfect-continuous",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/present-perfect-continuous",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/second-third-conditional",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/second-third-conditional",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/countable-uncountable-nouns",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/countable-uncountable-nouns",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/exam-format-overview",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/exam-format-overview",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/books-guide",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/books-guide",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/multilevel/tayyorgarlik-rejasi",
+    "status": 200,
+    "canonical": "https://edulevel.uz/multilevel/tayyorgarlik-rejasi",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/multilevel/speaking-javoblari",
+    "status": 200,
+    "canonical": "https://edulevel.uz/multilevel/speaking-javoblari",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/milliy-sertifikat/tayyorgarlik",
+    "status": 200,
+    "canonical": "https://edulevel.uz/milliy-sertifikat/tayyorgarlik",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/ingliz-tilini-nol-dan-boshlash",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/ingliz-tilini-nol-dan-boshlash",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/speaking-ravonligini-oshirish",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/speaking-ravonligini-oshirish",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/listening-yaxshilash-usullari",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/listening-yaxshilash-usullari",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/reading-tezligini-oshirish",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/reading-tezligini-oshirish",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/lugat-yodlash-usullari",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/lugat-yodlash-usullari",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/blog/writing-xatolari-va-tuzatish",
+    "status": 200,
+    "canonical": "https://edulevel.uz/blog/writing-xatolari-va-tuzatish",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/adjectives-adverbs",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/adjectives-adverbs",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/grammar/subject-verb-agreement",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/grammar/subject-verb-agreement",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/english/vocabulary/everyday-collocations",
+    "status": 200,
+    "canonical": "https://edulevel.uz/english/vocabulary/everyday-collocations",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/a1",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/a1",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/a2",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/a2",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/b1",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/b1",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/b2",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/b2",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/c1",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/c1",
+    "headings": 1,
+    "extraLinks": []
+  },
+  {
+    "path": "/cefr/c2",
+    "status": 200,
+    "canonical": "https://edulevel.uz/cefr/c2",
+    "headings": 1,
+    "extraLinks": []
+  }
+]

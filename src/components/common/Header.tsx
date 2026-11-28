@@ -190,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
     { label: 'Fikrlar', target: 'testimonials' },
     { label: 'VIP', target: 'vip' },
     { label: 'Ustoz', target: 'teacher-bio' },
-    { label: 'Savollar', target: 'faq' },
+    ...((db?.faqs || []).some(faq => faq.isVisible) ? [{ label: 'Savollar', target: 'faq' }] : []),
   ];
   // A link is shown only while its landing section is visible (the owner switches sections off in Sozlamalar).
   const SECTION_BY_TARGET: Record<string, string> = { news: 'news', books: 'books', results: 'results', testimonials: 'testimonials', vip: 'vip', 'teacher-bio': 'teacher', faq: 'faq' };

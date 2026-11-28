@@ -159,6 +159,21 @@ async function navigation(browser) {
     assert.equal(await menu.getAttribute('aria-expanded'), 'false');
     assert.equal(await menu.evaluate((el) => el === document.activeElement), true);
 
+    const faqPage = await context.newPage();
+    try {
+      const endpoint = new URL('/api/db/all', base).href;
+      await faqPage.route(endpoint, async (route) => {
+        const response = await route.fetch();
+        const body = await response.json();
+        body.data.faqs = [];
+        await route.fulfill({ response, json: body });
+      });
+      await faqPage.goto(base.href);
+      await faqPage.getByRole('button', { name: 'Menyu' }).click();
+      assert.equal(await faqPage.locator('#faq').count(), 0);
+      assert.equal(await faqPage.getByRole('button', { name: 'Savollar', exact: true }).count(), 0);
+    } finally { await faqPage.close(); }
+
     const login = await context.request.post(new URL('/api/auth/login', base).href, {
       data: { loginInput: process.env.OWNER_USERNAME, password: process.env.OWNER_PASSWORD },
     });
@@ -176,7 +191,7 @@ async function navigation(browser) {
     assert.equal((await response).status(), 200);
     const session = await context.request.get(new URL('/api/auth/me', base).href);
     assert.equal((await session.json()).authenticated, false);
-    console.log('PASS accessible mobile navigation, owner tab search, server logout');
+    console.log('PASS accessible mobile navigation, empty FAQ link, owner tab search, server logout');
   } finally { await context.close(); }
 }
 

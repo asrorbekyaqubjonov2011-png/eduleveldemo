@@ -364,8 +364,13 @@ export const EdubekChat: React.FC = () => {
   };
 
   useEffect(() => () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    recRef.current?.stop?.();
+    abortRef.current?.abort();
+    const recognition = recRef.current;
+    if (!recognition) return;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try { recognition.abort(); } catch { /* already closed */ }
   }, []);
 
   // Mood follows the conversation: listening, thinking, speaking, praise or a problem.
