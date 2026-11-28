@@ -424,7 +424,7 @@ export const EdubekChat: React.FC = () => {
   };
 
   /** One spoken turn: written into the saved conversation like any other message, in short spoken-English style. */
-  const talkTurn = async (text: string, onPiece: (soFar: string) => void): Promise<TalkResult> => {
+  const talkTurn = async (text: string, onPiece: (soFar: string) => void, signal: AbortSignal): Promise<TalkResult> => {
     if (!threads) return { ok: false, message: 'Suhbat hali yuklanmadi.' };
     const threadId = ensureThread();
     const current = threads.find((t) => t.id === threadId) ?? null;
@@ -439,7 +439,7 @@ export const EdubekChat: React.FC = () => {
         started = true;
         appendMessage(threadId, { id: replyId, sender: 'ai', text: soFar, timestamp: now() });
       } else update((list) => list.map((t) => (t.id === threadId ? { ...t, messages: t.messages.map((m) => (m.id === replyId ? { ...m, text: soFar } : m)) } : t)));
-    }).catch(() => ({ ok: false as const, message: 'Server bilan bog‘lanib bo‘lmadi.' }));
+    }, signal).catch(() => ({ ok: false as const, message: 'Server bilan bog‘lanib bo‘lmadi.' }));
     if (res.ok) {
       if (!started) appendMessage(threadId, { id: replyId, sender: 'ai', text: res.text, timestamp: now() });
       else update((list) => list.map((t) => (t.id === threadId ? { ...t, messages: t.messages.map((m) => (m.id === replyId ? { ...m, text: res.text } : m)) } : t)));

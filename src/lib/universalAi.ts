@@ -155,9 +155,6 @@ export interface UniversalAiCallOptions {
   signal?: AbortSignal;
 }
 
-const GEMINI_MODELS = Array.from(
-  new Set([GEMMA_MODEL, process.env.GEMINI_MODEL, 'gemini-3.8-flash', 'gemini-flash-latest'].filter((m): m is string => Boolean(m && m.trim())).map((m) => m!.trim()))
-);
 /** A key the provider rejects will be rejected by every model: stop instead of trying them all. */
 const isKeyProblem = (e: any) => /API key not valid|API_KEY_INVALID|PERMISSION_DENIED|API key expired/i.test(String(e?.message || e));
 
@@ -170,10 +167,10 @@ export interface ModelDiscovery {
 }
 
 /** Asks Google which models this key can call for generateContent (8 s limit). */
-export async function listGenerativeModels(apiKey: string): Promise<ModelDiscovery> {
+export async function listGenerativeModels(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<ModelDiscovery> {
   const t0 = Date.now();
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+    const res = await fetchImpl('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
       headers: { 'x-goog-api-key': apiKey },
       signal: AbortSignal.timeout(8000)
     });
@@ -252,12 +249,12 @@ export function usableModels(models: string[]): string[] {
 }
 
 /** Models to try, in order: Gemma first, then Gemini flash. Taken from what the key really offers when Google answers. */
-export async function pickGeminiModels(apiKey: string): Promise<string[]> {
+export async function pickGeminiModels(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<string[]> {
   const cacheKey = apiKey.slice(-8);
   const hit = modelCache.get(cacheKey);
   if (hit && Date.now() - hit.at < 3_600_000) return hit.models;
-  const info = await listGenerativeModels(apiKey);
-  let models = GEMINI_MODELS;
+  const info = await listGenerativeModels(apiKey, fetchImpl);
+  let models: string[] = [];
   if (info.ok && info.names.length) {
     const has = new Set(info.names);
     // Only models the key really lists are used (a retired model is never sent).
@@ -268,8 +265,8 @@ export async function pickGeminiModels(apiKey: string): Promise<string[]> {
     const picked = Array.from(new Set([...first, ...extra].filter((m) => m && has.has(m)))).slice(0, 5);
     if (picked.length) models = picked;
   }
-  // An unreachable list is retried soon; a good one is kept for an hour.
-  modelCache.set(cacheKey, { at: info.ok ? Date.now() : Date.now() - 3_540_000, models });
+  // Only a usable catalogue can authorize generation. Retry failed discovery on the next request.
+  if (models.length) modelCache.set(cacheKey, { at: Date.now(), models });
   return models;
 }
 
@@ -279,19 +276,24 @@ function tokenUsage(response: any): { inTok: number; outTok: number } {
   return { inTok: Number(u.promptTokenCount) || 0, outTok: (Number(u.candidatesTokenCount) || 0) + (Number(u.thoughtsTokenCount) || 0) };
 }
 
-let refreshing: Promise<string[]> | null = null;
-/**
- * The model order without making a student wait for Google's model list: a known list is used at once,
- * an unknown one gets at most 400 ms (the discovery keeps running and fills the cache for the next question).
- */
+const discoveries = new Map<string, Promise<string[]>>();
+
 export async function pickGeminiModelsFast(apiKey: string): Promise<string[]> {
   const hit = modelCache.get(apiKey.slice(-8));
-  if (hit) {
-    if (Date.now() - hit.at >= 3_000_000 && !refreshing) refreshing = pickGeminiModels(apiKey).finally(() => { refreshing = null; }); // refresh quietly
-    return hit.models;
+  if (hit && Date.now() - hit.at < 3_600_000) return hit.models;
+  let discovery = discoveries.get(apiKey);
+  if (!discovery) {
+    discovery = pickGeminiModels(apiKey).finally(() => discoveries.delete(apiKey));
+    discoveries.set(apiKey, discovery);
   }
-  const discovery = (refreshing ||= pickGeminiModels(apiKey).finally(() => { refreshing = null; }));
-  return Promise.race([discovery, new Promise<string[]>((r) => setTimeout(() => r(GEMINI_MODELS), 400))]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([discovery, new Promise<string[]>((resolve) => {
+      timer = setTimeout(() => resolve([]), 400);
+    })]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** The answer text without the model's reasoning parts (Gemma 4 sends its thoughts as parts flagged `thought`). */
@@ -1938,8 +1940,8 @@ export async function benchmarkGemini(fetchImpl: typeof fetch = fetch): Promise<
   if (!apiKey) return { provider: 'gemini', model: '—', ok: false, ttftMs: null, totalMs: null, chars: 0, message: 'GEMINI_API_KEY sozlanmagan' };
   if (!geminiAllowed()) return { provider: 'gemini', model: '—', ok: false, ttftMs: null, totalMs: null, chars: 0, message: 'Gemini bepul tarifi owner tomonidan tasdiqlanmagan (GEMINI_FREE_TIER_CONFIRMED=1): so‘rov yuborilmadi' };
   // Same model order and cooldowns as real answers; a model that just answered 429 is not asked again.
-  const all = await pickGeminiModelsFast(apiKey).catch(() => [] as string[]);
-  const candidates = usableModels(all.length ? all : GEMINI_MODELS).filter((m) => !isGemmaModel(m)).slice(0, 3);
+  const all = await pickGeminiModels(apiKey, fetchImpl).catch(() => [] as string[]);
+  const candidates = usableModels(all).filter((m) => !isGemmaModel(m)).slice(0, 3);
   if (!candidates.length) return { provider: 'gemini', model: '—', ok: false, ttftMs: null, totalMs: null, chars: 0, message: 'Gemini modellari vaqtincha kutilmoqda (429 yoki mavjud emas)' };
   let last: GeminiBenchmark | null = null;
   for (const m of candidates) {

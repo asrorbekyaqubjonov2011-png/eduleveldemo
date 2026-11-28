@@ -33,7 +33,7 @@ async function requestGemini(text: string, mood?: string): Promise<Blob | null> 
   finally { clearTimeout(timer); inflight.delete(ctrl); }
 }
 
-function playAudio(blob: Blob, text: string): Promise<boolean> {
+function playAudio(blob: Blob, text: string, onPlayback?: (playing: boolean) => void): Promise<boolean> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
@@ -44,6 +44,7 @@ function playAudio(blob: Blob, text: string): Promise<boolean> {
       clearTimeout(timer);
       stops.delete(stop);
       audio.onended = null; audio.onerror = null; audio.onplaying = null;
+      onPlayback?.(false);
       audio.pause();
       audio.removeAttribute('src');
       URL.revokeObjectURL(url);
@@ -52,14 +53,17 @@ function playAudio(blob: Blob, text: string): Promise<boolean> {
     const stop = () => finish(false);
     const timer = setTimeout(stop, Math.max(8000, Math.min(90000, text.length * 130 + 4000)));
     stops.add(stop);
-    audio.onplaying = () => markVoice('audio_play', 'server');
+    audio.onplaying = () => {
+      markVoice('audio_play', 'server');
+      onPlayback?.(true);
+    };
     audio.onended = () => finish(true);
     audio.onerror = stop;
     void audio.play().catch(stop);
   });
 }
 
-export async function speakSentence(text: string, mood?: string): Promise<void> {
+export async function speakSentence(text: string, mood?: string, onPlayback?: (playing: boolean) => void): Promise<void> {
   const clean = text.trim();
   if (!clean) return;
   const epoch = generation;
@@ -67,7 +71,7 @@ export async function speakSentence(text: string, mood?: string): Promise<void> 
   if (getEdubekSettings().voice === 'gemini') {
     const blob = await requestGemini(clean, mood);
     if (epoch !== generation) return;
-    if (blob && await playAudio(blob, clean)) return;
+    if (blob && await playAudio(blob, clean, onPlayback)) return;
   }
   if (epoch !== generation || !canSpeak()) return;
   const u = await makeUtterance(clean, mood);
@@ -80,12 +84,16 @@ export async function speakSentence(text: string, mood?: string): Promise<void> 
       clearTimeout(timer);
       stops.delete(stop);
       u.onend = null; u.onerror = null; u.onstart = null;
+      onPlayback?.(false);
       resolve();
     };
     const stop = () => { finish(); window.speechSynthesis.cancel(); };
     const timer = setTimeout(stop, Math.max(8000, Math.min(90000, clean.length * 130 + 4000)));
     stops.add(stop);
-    u.onstart = () => markVoice('audio_play', 'browser');
+    u.onstart = () => {
+      markVoice('audio_play', 'browser');
+      onPlayback?.(true);
+    };
     u.onend = finish;
     u.onerror = finish;
     try { window.speechSynthesis.speak(u); } catch { finish(); }

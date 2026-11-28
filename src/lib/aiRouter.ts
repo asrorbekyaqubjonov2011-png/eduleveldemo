@@ -126,7 +126,7 @@ export async function providerListing(id: FallbackProviderId, key: string, fetch
 }
 
 let freeOpenRouter: { at: number; models: string[] } | null = null;
-/** OpenRouter's currently free models (`:free`, price 0). The public list needs no key; a failure keeps the built-in list. */
+/** OpenRouter's currently free models (`:free`, price 0). The public list needs no key; a failed catalogue denies generation. */
 export async function openRouterFreeModels(fetchImpl: typeof fetch = fetch): Promise<string[]> {
   if (freeOpenRouter && Date.now() - freeOpenRouter.at < 3_600_000) return freeOpenRouter.models;
   try {
@@ -221,6 +221,7 @@ export function resetProviderCooldowns(): void {
   providerCooldown.clear();
   paymentBlocked.clear();
   listingCache.clear();
+  freeOpenRouter = null;
   badModels.clear();
   resetProviderStats();
 }

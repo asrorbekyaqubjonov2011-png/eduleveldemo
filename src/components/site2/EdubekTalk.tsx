@@ -15,7 +15,7 @@ const BARGE_MS = 250;
 export type TalkResult = { ok: true; text: string } | { ok: false; message: string };
 interface Props {
   /** Sends what the student said and streams the reply; the conversation is saved by the caller. */
-  turn: (text: string, onPiece: (soFar: string) => void) => Promise<TalkResult>;
+  turn: (text: string, onPiece: (soFar: string) => void, signal: AbortSignal) => Promise<TalkResult>;
   onClose: () => void;
   /** For role-plays and the IELTS examiner: Edubek speaks first, answering this opening line. */
   opening?: string;
@@ -41,6 +41,7 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     toneRef.current = tone;
   }, [tone]);
   const openedRef = useRef(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [active, setActive] = useState(false);
   const [lang, setLang] = useState('en-US');
@@ -65,12 +66,18 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
   }, [lang]);
 
   const stopListening = useCallback(() => {
+    const recognition = recRef.current;
+    if (!recognition) return;
+    recRef.current = null;
+    recognition.onend = null;
+    recognition.onerror = null;
+    recognition.onresult = null;
+    recognition.onspeechend = null;
     try {
-      recRef.current?.abort?.();
+      recognition.abort();
     } catch {
       /* already stopped */
     }
-    recRef.current = null;
   }, []);
 
 
@@ -81,6 +88,8 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
   }, [turn]);
   const queueRef = useRef<SpeechQueue | null>(null);
   const turnIdRef = useRef(0);
+  const requestRef = useRef<AbortController | null>(null);
+  const converseRef = useRef<(said: string) => Promise<void>>(async () => {});
   const bargeStopRef = useRef<(() => void) | null>(null);
 
   const stopBargeWatch = useCallback(() => {
@@ -88,7 +97,7 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     bargeStopRef.current = null;
   }, []);
 
-  const listen = useCallback(() => {
+  const listen = useCallback(function startListening() {
     if (!SR || !activeRef.current) return;
     stopBargeWatch();
     stopListening();
@@ -112,12 +121,12 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
           activeRef.current = false;
           setActive(false);
           go('idle');
-        } else listen();
+        } else startListening();
         return;
       }
       handled = true;
       markVoice('stt_final', String(said.length));
-      await converse(said);
+      await converseRef.current(said);
     };
     rec.onspeechend = () => {
       speechEnded = true;
@@ -165,7 +174,6 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     } catch {
       /* already started */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SR, stopListening, stopBargeWatch]);
 
   /**
@@ -222,6 +230,8 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     if (phaseRef.current !== 'speaking') return;
     markVoice('barge_in');
     turnIdRef.current += 1;
+    requestRef.current?.abort();
+    setAudioPlaying(false);
     queueRef.current?.cancel();
     stopSpeech();
     listen();
@@ -229,6 +239,9 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
 
   const converse = async (said: string) => {
     const id = ++turnIdRef.current;
+    requestRef.current?.abort();
+    const request = new AbortController();
+    requestRef.current = request;
     stopBargeWatch();
     markVoice('turn_start', String(said.length));
     setHeard(said);
@@ -241,9 +254,14 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     let firstPiece = true;
     const queue = createSpeechQueue(
       (s, m) => {
-        go('speaking');
-        startBargeWatch();
-        return speakSentence(s, m);
+        return speakSentence(s, m, (playing) => {
+          if (turnIdRef.current !== id) return;
+          setAudioPlaying(playing);
+          if (playing) {
+            go('speaking');
+            startBargeWatch();
+          }
+        });
       },
       () => {
         if (turnIdRef.current !== id || !activeRef.current) return;
@@ -273,10 +291,14 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
       const { sentences, next } = takeSentences(soFar, spokenTo);
       spokenTo = next;
       sentences.forEach(push);
+    }, request.signal).finally(() => {
+      if (requestRef.current === request) requestRef.current = null;
     });
     if (turnIdRef.current !== id) return;
     if (!res.ok) {
       queue.cancel();
+      stopSpeech();
+      stopBargeWatch();
       setNote(res.message);
       activeRef.current = false;
       setActive(false);
@@ -289,6 +311,8 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     if (rest) push(rest);
     queue.end();
   };
+
+  useEffect(() => { converseRef.current = converse; });
 
   const start = () => {
     if (!SR) {
@@ -309,10 +333,12 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     activeRef.current = false;
     setActive(false);
     turnIdRef.current += 1;
+    requestRef.current?.abort();
+    setAudioPlaying(false);
     queueRef.current?.cancel();
     stopBargeWatch();
     stopListening();
-    if (canSpeak) window.speechSynthesis.cancel();
+    stopSpeech();
     go('idle');
   };
 
@@ -328,10 +354,11 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
       window.removeEventListener('keydown', onKey);
       activeRef.current = false;
       turnIdRef.current += 1;
+      requestRef.current?.abort();
       queueRef.current?.cancel();
       stopBargeWatch();
       stopListening();
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      stopSpeech();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -342,7 +369,7 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
   // Drawn on the page itself: an animated parent would otherwise confine a full-screen layer to its own box.
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Edubek bilan suhbat" className="fixed inset-0 z-[70] flex flex-col items-center justify-between overflow-hidden bg-gradient-to-b from-[#fff4e6] via-[#ffe7d2] to-[#ffd9e6] px-5 py-6 dark:from-[#17110d] dark:via-[#1d1410] dark:to-[#26121c]">
+    <div role="dialog" aria-modal="true" aria-label="Edubek bilan suhbat" className="edubek-voice-room fixed inset-0 z-[70] flex flex-col items-center justify-between overflow-y-auto px-5 py-6">
       <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[34%] h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,154,60,0.45),transparent_68%)]" />
       <div className="relative flex w-full max-w-xl items-center justify-between">
         <div className="flex items-center gap-1 rounded-full border border-white/60 bg-white/60 p-1 backdrop-blur dark:border-white/10 dark:bg-white/10" role="group" aria-label="Tinglash tili">
@@ -358,8 +385,8 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
       </div>
 
       <div className="relative flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-5">
-        <button type="button" onClick={() => (phase === 'speaking' ? bargeIn() : undefined)} aria-label="Edubek" className="rounded-[3rem] outline-none">
-          <EdubekAvatar mood={mood} size={240} />
+        <button type="button" onClick={() => (phase === 'speaking' ? bargeIn() : undefined)} aria-label="EduBek ovozini to‘xtatish" disabled={phase !== 'speaking'} className="rounded-[3rem]">
+          <EdubekAvatar mood={mood} size={240} audioPlaying={audioPlaying} />
         </button>
         {modeTitle ? <span className="rounded-full bg-[#e8457a]/10 px-3 py-1 text-[12px] font-bold text-[#b82a5c]">{modeTitle}</span> : null}
         <p aria-live="polite" className="font-display text-[15px] font-bold text-ink dark:text-white">{STATUS[phase]}</p>

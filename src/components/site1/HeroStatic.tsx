@@ -1,4 +1,5 @@
-import { ArrowUpRight, ArrowRight, Sparkles, BookOpen, GraduationCap, AudioLines, Layers3 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowUpRight, ArrowRight, BookOpen, GraduationCap, AudioLines, Layers3 } from 'lucide-react';
 
 const paths = [
   { title: 'IELTS', detail: 'Academic · General Training', href: '/ielts-tayyorgarlik', icon: GraduationCap, tone: 'blue' },
@@ -13,14 +14,13 @@ export function HeroStatic({ onStart, signedIn = false }: { onStart?: () => void
       <div className="vision-wrap">
         <div className="vision-grid">
           <div className="vision-copy">
-            <div className="vision-kicker"><Sparkles size={15} aria-hidden="true"/> LEARNING BEYOND LIMITS</div>
             <h1>Ingliz tilini o‘rganishning <span>yangi darajasi.</span></h1>
             <p>IELTS, CEFR va General English — bitta platformada. EduBek AI bilan mashq qiling, darajangizni aniqlang va maqsadingiz sari izchil harakat qiling.</p>
             <div className="vision-actions">
               {onStart
                 ? <button className="vision-primary" onClick={onStart} type="button">{signedIn ? 'Kabinetga o‘tish' : 'O‘qishni boshlash'} <ArrowUpRight size={18} aria-hidden="true"/></button>
-                : <a className="vision-primary" href="/#/auth">O‘qishni boshlash <ArrowUpRight size={18} aria-hidden="true"/></a>}
-              <a className="vision-secondary" href="/ingliz-tili-darslari">Darslarni ko‘rish <ArrowRight size={17} aria-hidden="true"/></a>
+                : <Link className="vision-primary" href="/#/auth">O‘qishni boshlash <ArrowUpRight size={18} aria-hidden="true"/></Link>}
+              <Link className="vision-secondary" href="/ingliz-tili-darslari">Darslarni ko‘rish <ArrowRight size={17} aria-hidden="true"/></Link>
             </div>
             <div className="vision-proof"><span>◎ Shaxsiy o‘quv yo‘li</span><span>✓ AI bilan mashq</span><span>✓ Daraja testi</span></div>
           </div>
@@ -39,7 +39,7 @@ export function HeroStatic({ onStart, signedIn = false }: { onStart?: () => void
           </div>
         </div>
         <div className="vision-paths" aria-label="Ta’lim yo‘nalishlari">{paths.map(p =>
-          <a className="vision-path" href={p.href} key={p.title}><span className={'vision-mini '+p.tone}><p.icon size={21} aria-hidden="true"/></span><div><strong>{p.title}</strong><small>{p.detail}</small></div><ArrowUpRight className="vision-arrow" size={19} aria-hidden="true"/></a>
+          <Link className="vision-path" href={p.href} key={p.title}><span className={'vision-mini '+p.tone}><p.icon size={21} aria-hidden="true"/></span><div><strong>{p.title}</strong><small>{p.detail}</small></div><ArrowUpRight className="vision-arrow" size={19} aria-hidden="true"/></Link>
         )}</div>
       </div>
     </section>
@@ -49,11 +49,11 @@ export function HeroStatic({ onStart, signedIn = false }: { onStart?: () => void
 export function HeroLoading({ error, onRetry }: { error?: boolean; onRetry?: () => void }) {
   return <div className="vision-shell">
     <nav className="vision-nav" aria-label="Asosiy menyu">
-      <a className="vision-logo" href="/">
+      <Link className="vision-logo" href="/">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/edulevel-mark.webp" alt="" width="34" height="34"/> EduLevel
-      </a>
-      <div className="vision-nav-links"><a href="/ielts-tayyorgarlik">IELTS</a><a href="/cefr-tayyorgarlik">CEFR</a><a href="/ingliz-tili-darslari">General English</a></div>
+      </Link>
+      <div className="vision-nav-links"><Link href="/ielts-tayyorgarlik">IELTS</Link><Link href="/cefr-tayyorgarlik">CEFR</Link><Link href="/ingliz-tili-darslari">General English</Link></div>
       <a className="vision-login" href="/#/auth">Kirish <ArrowUpRight size={15} aria-hidden="true"/></a>
     </nav>
     <HeroStatic/>

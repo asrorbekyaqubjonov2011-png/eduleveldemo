@@ -1,0 +1,150 @@
+// Runs against the same isolated HTTPS fixture as vision-browser-smoke.cjs.
+const assert = require('node:assert/strict');
+const { createHmac } = require('node:crypto');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { chromium } = require('playwright');
+
+const base = new URL(process.env.BASE || 'https://127.0.0.1:3443');
+if (base.hostname !== '127.0.0.1' || base.protocol !== 'https:') throw new Error('Isolated HTTPS fixture only');
+const output = process.env.VISION_SHOTS || 'vision-smoke-results';
+const shot = (page, name) => page.screenshot({ path: path.join(output, name + '.png') });
+
+async function voice(browser) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  try {
+    const email = 'v13-voice-' + Date.now() + '@test.local';
+    const registered = await context.request.post(new URL('/api/auth/register', base).href, {
+      data: { name: 'Voice', surname: 'Fixture', identifier: email, email, password: 'VoiceFixture-123!' },
+    });
+    assert.equal(registered.status(), 200);
+    await context.addInitScript(() => {
+      window.SpeechRecognition = class {
+        start() {
+          this.timer = setTimeout(() => {
+            this.onspeechend?.();
+            this.onresult?.({ resultIndex: 0, results: [{ 0: { transcript: 'How are you?' }, isFinal: true }] });
+          }, 100);
+        }
+        stop() { clearTimeout(this.timer); }
+        abort() { this.stop(); }
+      };
+      speechSynthesis.getVoices = () => [];
+      speechSynthesis.speak = (utterance) => setTimeout(() => utterance.onstart?.(), 100);
+      speechSynthesis.cancel = () => {};
+      const request = window.fetch.bind(window);
+      window.fetch = (url, options) => {
+        if (url !== '/api/ai-stream') return request(url, options);
+        return Promise.resolve(new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('This is a fixture answer. '.repeat(4)));
+            options.signal.addEventListener('abort', () => {
+              window.fixtureVoiceAborted = true;
+              controller.error(new DOMException('Cancelled', 'AbortError'));
+            }, { once: true });
+          },
+        }), { headers: { 'Content-Type': 'text/plain' } }));
+      };
+    });
+    const page = await context.newPage();
+    await page.goto(new URL('/#/student', base).href, { waitUntil: 'domcontentloaded' });
+    await page.locator('main > div.lg\\:hidden > button').click();
+    await page.getByRole('button', { name: 'AI', exact: true }).click();
+    await page.getByRole('button', { name: /^Edubek\b/i }).click();
+    await page.getByRole('button', { name: 'Suhbat', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edubek bilan suhbat' });
+    const avatar = dialog.locator('[data-audio-playing]');
+    await avatar.locator('.edubek-articulated-head').waitFor();
+    assert.equal(await avatar.getAttribute('data-audio-playing'), 'false');
+    await shot(page, 'v13-voice-idle-390');
+    await dialog.getByRole('button', { name: 'Suhbatni boshlash' }).click();
+    await dialog.locator('[data-audio-playing="true"] .edubek-audible-mouth').waitFor();
+    await shot(page, 'v13-voice-playing-390');
+    await dialog.getByRole('button', { name: 'Suhbatni to‘xtatish' }).click();
+    await page.waitForFunction(() => window.fixtureVoiceAborted === true);
+    assert.equal(await avatar.getAttribute('data-audio-playing'), 'false');
+    await dialog.getByRole('button', { name: 'Suhbatni yopish' }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    console.log('PASS mock STT/AI/TTS: idle, active playback, abort, motion cleanup');
+  } finally { await context.close(); }
+}
+
+async function miniApp(browser) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 768, height: 1024 } });
+  try {
+    const api = new URL('/api/telegram/miniapp', base).href;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) throw new Error('Set the fixture Telegram token');
+    const signed = (timestamp) => {
+      const params = new URLSearchParams({ auth_date: String(timestamp), user: '{"id":42}' });
+      const fields = [...params].map(([key, value]) => key + '=' + value).sort().join('\n');
+      const secret = createHmac('sha256', 'WebAppData').update(token).digest();
+      params.set('hash', createHmac('sha256', secret).update(fields).digest('hex'));
+      return params.toString();
+    };
+    const now = Math.floor(Date.now() / 1000);
+    const good = signed(now);
+    for (const [initData, expected] of [[good, 204], [good.replace('42', '43'), 401], [signed(now - 90000), 401], ['', 401]]) {
+      const response = await context.request.post(api, { headers: { 'x-telegram-init-data': initData } });
+      assert.equal(response.status(), expected);
+      assert.equal(response.headers()['set-cookie'], undefined);
+    }
+    const page = await context.newPage();
+    // The signed payload fixture exercises the app without contacting Telegram.
+    await page.route('https://telegram.org/js/telegram-web-app.js', (route) => route.fulfill({
+      contentType: 'application/javascript',
+      body: 'window.Telegram={WebApp:{colorScheme:"dark",initData:' + JSON.stringify(good) + '}};',
+    }));
+    await page.goto(new URL('/miniapp', base).href);
+    await page.getByRole('status').filter({ hasText: 'Telegram ochilishi tasdiqlandi.' }).waitFor();
+    const links = await page.getByRole('navigation', { name: 'Ta’lim yo‘nalishlari' }).getByRole('link').evaluateAll((items) => items.map((item) => item.href));
+    assert.equal(links.length, 6);
+    for (const target of links) assert.equal((await context.request.get(target)).status(), 200);
+    await shot(page, 'v13-mini-app-verified-768');
+    console.log('PASS Mini App: fresh signature, altered data, expiry, six shortcuts');
+  } finally { await context.close(); }
+}
+
+async function navigation(browser) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  try {
+    const page = await context.newPage();
+    await page.goto(base.href);
+    const menu = page.getByRole('button', { name: 'Menyu' });
+    await menu.click();
+    assert.equal(await menu.getAttribute('aria-expanded'), 'true');
+    await shot(page, 'v13-mobile-navigation-390');
+    await page.keyboard.press('Escape');
+    assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+    assert.equal(await menu.evaluate((el) => el === document.activeElement), true);
+
+    const login = await context.request.post(new URL('/api/auth/login', base).href, {
+      data: { loginInput: process.env.OWNER_USERNAME, password: process.env.OWNER_PASSWORD },
+    });
+    assert.equal(login.status(), 200);
+    const ownerPage = await context.newPage();
+    await ownerPage.setViewportSize({ width: 1440, height: 900 });
+    await ownerPage.goto(new URL('/#/admin', base).href);
+    const filter = ownerPage.getByRole('searchbox', { name: 'Owner bo‘limlarini qidirish' });
+    await filter.fill('SEO');
+    await ownerPage.getByRole('button', { name: 'SEO sahifalar', exact: true }).click();
+    await shot(ownerPage, 'v13-owner-seo-1440');
+    const logOut = ownerPage.locator('aside').getByRole('button', { name: 'Chiqish', exact: true });
+    const response = ownerPage.waitForResponse((r) => r.url().endsWith('/api/auth/logout'));
+    await logOut.click();
+    assert.equal((await response).status(), 200);
+    const session = await context.request.get(new URL('/api/auth/me', base).href);
+    assert.equal((await session.json()).authenticated, false);
+    console.log('PASS accessible mobile navigation, owner tab search, server logout');
+  } finally { await context.close(); }
+}
+
+(async () => {
+  await fs.mkdir(output, { recursive: true });
+  const browser = await chromium.launch();
+  try {
+    await navigation(browser);
+    await miniApp(browser);
+    await voice(browser);
+  } finally { await browser.close(); }
+})().catch((error) => { console.error(error.message); process.exitCode = 1; });

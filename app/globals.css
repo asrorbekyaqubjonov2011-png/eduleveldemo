@@ -1733,3 +1733,161 @@ html.perf-lite .hero-shimmer::after { animation: none; transform: translate3d(12
 @media(max-width:600px){.vision-nav{gap:10px}.vision-nav-links{display:none}.vision-actions{margin-top:22px}.vision-actions a,.vision-actions button{flex:1 1 142px;min-height:48px;padding:12px 14px;font-size:13px;gap:8px}.vision-proof{margin-top:17px;gap:12px;font-size:12px}.vision-paths{grid-template-columns:1fr;gap:9px;margin-top:8px}.vision-path{padding:13px 15px}.vision-path strong{font-size:15px}.vision-head{animation:none}}
 @media(prefers-reduced-motion:reduce){.vision-hero *{animation:none!important;transition:none!important}}
 html.perf-lite .vision-head,html[data-scrolling] .vision-head{animation-play-state:paused}
+
+/* Vision V13 optical materials and shared interaction states. */
+:root {
+  --vision-canvas: #f4f7ff;
+  --vision-ink: #101c39;
+  --vision-muted: #445675;
+  --vision-accent: #2446ca;
+  --vision-glass: linear-gradient(148deg, #fffffff5, #edf3ffb8 72%, #dce8ffc2);
+  --vision-edge: #ffffffed;
+  --vision-depth: 0 16px 42px -24px #2a4c9d80, inset 0 1px 0 #ffffffed;
+  --glass-1-bg: linear-gradient(145deg, #fffffff2, #f6f8ffe0);
+  --glass-1-border: #dce5f3;
+  --glass-2-bg: linear-gradient(150deg, #ffffffed, #edf3ffdc);
+  --glass-2-border: #dbe6fa;
+}
+
+.dark {
+  --vision-canvas: #0c1427;
+  --vision-ink: #f0f5ff;
+  --vision-muted: #c4d1ec;
+  --vision-accent: #b2c4ff;
+  --vision-glass: linear-gradient(150deg, #2d3957f0, #162139f5 78%);
+  --vision-edge: #9ab5f448;
+  --vision-depth: 0 20px 46px -22px #0009, inset 0 1px 0 #e0e9ff20;
+  --glass-1-bg: linear-gradient(145deg, #252d3bef, #181e2aef);
+  --glass-1-border: #b6ccff33;
+  --glass-2-bg: linear-gradient(150deg, #273248f0, #172133f0);
+  --glass-2-border: #b6ccff40;
+}
+
+.vision-hero,
+.dark .vision-hero {
+  color: var(--vision-ink);
+  background:
+    radial-gradient(ellipse at 78% 28%, #6f97ff38, transparent 48%),
+    radial-gradient(ellipse at 99% 70%, #a78bfa2e, transparent 42%),
+    var(--vision-canvas);
+}
+
+.vision-copy h1 span,
+.dark .vision-copy h1 span { color: var(--vision-accent); }
+.vision-copy p, .vision-proof { color: var(--vision-muted); }
+.vision-copy h1 { margin-top: 0; }
+.vision-primary { background: linear-gradient(155deg, #4e70ee, #2040bd 77%); border-color: #2e4ac4; }
+.vision-primary:active, .vision-secondary:active { scale: .985; }
+.vision-nav, .vision-path, .vision-float, .vision-secondary,
+.dark .vision-nav, .dark .vision-path, .dark .vision-float {
+  background: var(--vision-glass);
+  color: var(--vision-ink);
+  border-color: var(--vision-edge);
+  box-shadow: var(--vision-depth);
+}
+
+.vision-scene::before {
+  content: '';
+  position: absolute;
+  inset: 5% 7% 8%;
+  border: 1px solid var(--vision-edge);
+  border-radius: 38%;
+  background: radial-gradient(ellipse at 48% 54%, #8eaaff55, transparent 69%), var(--vision-glass);
+  box-shadow: var(--vision-depth);
+  pointer-events: none;
+}
+
+.vision-orbit { border-color: #7799f495; }
+.vision-float { border-radius: 20px; }
+.vision-path { min-height: 72px; }
+.vision-path small, .vision-float small { color: var(--vision-muted); }
+
+@supports (animation-timeline: view()) {
+  @media (min-width: 901px) and (prefers-reduced-motion: no-preference) {
+    html:not(.perf-lite) .vision-robot {
+      animation: vision-scroll-lift linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 85%;
+    }
+  }
+}
+@keyframes vision-scroll-lift {
+  from { transform: translateY(-5%); }
+  to { transform: translateY(3%); }
+}
+
+.edubek-voice-room {
+  padding-block: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 38%, #8eaaff55, transparent 59%), var(--vision-canvas);
+}
+
+.edubek-articulated-head {
+  transform-box: view-box;
+  transform-origin: 100px 124px;
+  transform: translateX(var(--edu-shift, 0px)) rotate(var(--edu-yaw, 0deg));
+}
+
+.vision-avatar:not(.vision-avatar-animated) .edubek-eye { animation: none; }
+.vision-avatar-animated .edubek-eye { animation: edubek-natural-blink 11s infinite; }
+.vision-avatar-animated .edubek-articulated-head { transition: transform 360ms var(--ease-liquid); }
+.vision-avatar-animated:not([data-aimed])[data-mood='idle'] .edubek-articulated-head,
+.vision-avatar-animated:not([data-aimed])[data-mood='happy'] .edubek-articulated-head {
+  animation: edubek-idle-turn 8s ease-in-out infinite;
+}
+.vision-avatar[data-mood='listening'] .edubek-articulated-head { transform: none; }
+.edubek-audible-mouth {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  animation: edubek-audible-speech 620ms ease-in-out infinite;
+}
+
+@keyframes edubek-natural-blink {
+  0%, 17%, 20%, 52%, 55%, 83%, 86%, 100% { scale: 1 1; }
+  18.5%, 53.5%, 84.5% { scale: 1 .12; }
+}
+@keyframes edubek-idle-turn {
+  0%, 100% { transform: none; }
+  27% { transform: translateX(-4px) rotate(-5deg); }
+  72% { transform: translateX(4px) rotate(5deg); }
+}
+@keyframes edubek-audible-speech {
+  0%, 100% { scale: 1 .62; }
+  25% { scale: .8 1.75; }
+  54% { scale: .92 .85; }
+  77% { scale: .74 1.55; }
+}
+
+.vision-avatar[data-offscreen='true'] *,
+.vision-avatar[data-document-hidden='true'] * { animation-play-state: paused !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-site-fade-in, .vision-avatar-animated *, .vision-hero * { animation: none !important; }
+  .vision-avatar-animated .edubek-articulated-head { transition: none; transform: none; }
+}
+
+.vision-mini-app {
+  min-height: 100dvh;
+  padding: max(2rem, env(safe-area-inset-top)) 1rem max(2rem, env(safe-area-inset-bottom));
+  color: var(--vision-ink);
+  background: radial-gradient(ellipse at 76% 5%, #799aff42, transparent 53%), var(--vision-canvas);
+}
+.vision-mini-app-inner { width: min(100%, 52rem); margin-inline: auto; }
+.vision-mini-app h1 { font: 800 clamp(2.6rem, 8vw, 4rem)/1.1 var(--font-heading); letter-spacing: -.055em; }
+.vision-mini-app p { margin-block: .5rem 1rem; color: var(--vision-muted); }
+.vision-mini-app nav { display: grid; gap: .75rem; }
+@media (min-width: 640px) { .vision-mini-app nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.vision-header-glass { overflow: visible; }
+.vision-header-glass::before { animation: none; transform: none; background: none; }
+.liquid-glass.vision-header-glass:not(.header-solid),
+html.dark .liquid-glass.vision-header-glass:not(.header-solid),
+.vision-mobile-navigation {
+  background: var(--vision-glass);
+  border-color: var(--vision-edge);
+  box-shadow: var(--vision-depth);
+}
+.vision-mobile-navigation { backdrop-filter: blur(18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  #edulevel-mobile-navigation { transition: none; }
+}

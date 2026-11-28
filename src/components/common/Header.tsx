@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { subscribeScroll } from '../../lib/motion/scrollEngine';
+import { prefersReducedMotion } from '../../lib/motion';
 import {
   Sun,
   Moon,
@@ -60,6 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const mobileMenuButton = useRef<HTMLButtonElement>(null);
   const clickCountRef = useRef(0);
   const lastClickTimeRef = useRef(0);
 
@@ -151,15 +153,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   const scrollToSection = (e: React.MouseEvent | null, sectionId: string) => {
     e?.preventDefault();
+    const behavior = prefersReducedMotion() ? 'auto' : 'smooth';
     setOpenMenu(null);
     setMobileOpen(false);
     if (activeSite !== 'site1_open') {
       setActiveSite('site1_open');
       setTimeout(() => {
-        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById(sectionId)?.scrollIntoView({ behavior, block: 'start' });
       }, 180);
     } else {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById(sectionId)?.scrollIntoView({ behavior, block: 'start' });
     }
   };
 
@@ -202,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
   const overDark = variant === 'floating' && !scrolled && theme === 'dark';
   const bodyClass = cn(
     'transition-all duration-500',
-    overDark ? 'glass-night relative rounded-full' : 'liquid-glass relative rounded-full',
+    overDark ? 'glass-night vision-header-glass relative rounded-full' : 'liquid-glass vision-header-glass relative rounded-full',
     // Once the page scrolls under the bar it turns solid, so text from sections below never shows through the logo.
     scrolled && !overDark && 'header-solid'
   );
@@ -227,6 +230,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return;
+        if (mobileOpen) {
+          setMobileOpen(false);
+          mobileMenuButton.current?.focus();
+        }
+        setOpenMenu(null);
+        setShowLangMenu(false);
+      }}
       className={cn(
         'top-0 z-50 w-full transition-[padding] duration-500',
         isFloating ? 'fixed inset-x-0 pt-3 sm:pt-4' : 'sticky py-2 sm:py-3',
@@ -258,7 +270,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     className={cn(linkClass, navActive(item.label) && activePill)}
                     aria-expanded={openMenu === item.label}
-                    aria-haspopup="true"
+                    onClick={(event) => setOpenMenu(event.detail === 0 && openMenu === item.label ? null : item.label)}
                   >
                     {item.label}
                     <ChevronDown
@@ -270,6 +282,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
 
                   <div
+                    inert={openMenu !== item.label}
                     className={cn(
                       'absolute left-1/2 top-full w-[280px] -translate-x-1/2 pt-2 transition-all duration-300',
                       openMenu === item.label
@@ -461,9 +474,11 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mobile menu */}
             <button
+              ref={mobileMenuButton}
               onClick={() => setMobileOpen((v) => !v)}
               className={cn(iconBtn, 'xl:hidden')}
               aria-label="Menyu"
+              aria-controls="edulevel-mobile-navigation"
               aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -473,12 +488,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile drawer */}
         <div
+          id="edulevel-mobile-navigation"
+          inert={!mobileOpen}
           className={cn(
-            'xl:hidden overflow-hidden transition-all duration-500',
-            mobileOpen ? 'mt-2 max-h-[620px] opacity-100' : 'max-h-0 opacity-0'
+            'xl:hidden overflow-y-auto overscroll-contain transition-all duration-300',
+            mobileOpen ? 'mt-2 max-h-[min(620px,calc(100dvh-90px))] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
-          <div className="rounded-2xl border border-line/80 bg-[#fbf6ef]/[0.97] p-3 shadow-[0_30px_60px_-30px_rgba(18,16,14,0.45)] dark:border-white/10 dark:bg-[#0c0d12]/[0.97]">
+          <div className="vision-mobile-navigation rounded-2xl border p-3">
             <div className="space-y-0.5">
               {navLinks.map((item) => (
                 <div key={item.label}>

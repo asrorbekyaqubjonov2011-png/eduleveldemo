@@ -67,7 +67,8 @@ import { OWNER_NAV_LOCKED } from '../../lib/ownerNav';
  * data-oriented stage with a consistent header per module.
  */
 export const Site3Owner: React.FC = () => {
-  const { setActiveSite, setIsOwnerAuth, db, refreshDb } = useApp();
+  const { setActiveSite, logout, db, refreshDb } = useApp();
+  const [navSearch, setNavSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -86,6 +87,7 @@ export const Site3Owner: React.FC = () => {
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
     setMobileNavOpen(false);
+    setNavSearch('');
     refreshDb();
   };
 
@@ -147,17 +149,14 @@ export const Site3Owner: React.FC = () => {
       ...g,
       items: g.items
         .filter((it) => !hiddenOwnerNav.has(it.id) || OWNER_NAV_LOCKED.includes(it.id))
+        .filter((it) => it.id !== 'shop_manager' || coinOn)
         .map((it) => ({ ...it, label: ownerNavNames[it.id]?.trim() || it.label }))
+        .filter((it) => it.label.toLocaleLowerCase().includes(navSearch.trim().toLocaleLowerCase()))
     }))
     .filter((g) => g.items.length > 0);
 
-  const handleLogout = () => {
-    setIsOwnerAuth(false);
-    setActiveSite('site1_open');
-  };
-
   const currentLabel =
-    navGroups.flatMap((g) => g.items).find((i) => i.id === activeTab)?.label || 'Boshqaruv paneli';
+    ownerNavNames[activeTab]?.trim() || navGroups.flatMap((g) => g.items).find((i) => i.id === activeTab)?.label || 'Boshqaruv paneli';
 
   /* ------------------------------------------------------------------ */
   /* Rail                                                                */
@@ -192,15 +191,22 @@ export const Site3Owner: React.FC = () => {
         </div>
       </div>
 
+      <label className="relative mt-3 block">
+        <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-white/55" />
+        <input type="search" value={navSearch} onChange={(event) => setNavSearch(event.target.value)}
+          aria-label="Owner bo‘limlarini qidirish" placeholder="Bo‘limlarni qidirish"
+          className="w-full rounded-xl border border-white/15 bg-white/10 py-2 pl-8 pr-2 text-xs text-white placeholder:text-white/55" />
+      </label>
       {/* Nav */}
       <nav className="mt-4 flex-1 space-y-4 overflow-y-auto pb-3 no-scrollbar">
+        {visibleNavGroups.length === 0 && <p className="px-2 text-xs text-white/70" role="status">Bo‘lim topilmadi.</p>}
         {visibleNavGroups.map((group) => (
           <div key={group.title}>
             <div className="mb-1.5 px-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/25">
               {group.title}
             </div>
             <div className="space-y-0.5">
-              {group.items.filter((item) => item.id !== 'shop_manager' || coinOn).map((item) => {
+              {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
@@ -246,7 +252,7 @@ export const Site3Owner: React.FC = () => {
           Ochiq sayt
         </button>
         <button
-          onClick={handleLogout}
+          onClick={logout}
           className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[12px] font-semibold text-rose-300 transition-colors hover:bg-rose-500/10"
         >
           <LogOut className="h-3.5 w-3.5" />
@@ -266,7 +272,7 @@ export const Site3Owner: React.FC = () => {
       </aside>
 
       {/* Mobile rail */}
-      <div className={cn('fixed inset-0 z-[80] lg:hidden', mobileNavOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
+      <div inert={!mobileNavOpen} className={cn('fixed inset-0 z-[80] lg:hidden', mobileNavOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
         <div
           onClick={() => setMobileNavOpen(false)}
           className={cn('absolute inset-0 bg-ink/45 backdrop-blur-sm transition-opacity', mobileNavOpen ? 'opacity-100' : 'opacity-0')}
