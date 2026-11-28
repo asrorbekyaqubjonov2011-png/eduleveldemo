@@ -38,8 +38,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     activeSite,
     setActiveSite,
     setActiveCourseId,
-    setActiveTestId,
-    updateStudentProfile
+    setActiveTestId
   } = useApp();
 
   const [query, setQuery] = useState('');
@@ -156,7 +155,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     });
 
     return list;
-  }, [db.readingTests, db.courses, currentUser, onNavigateLmsTab, onClose, setActiveCourseId, setActiveSite, updateStudentProfile]);
+  }, [db.readingTests, db.courses, currentUser, onNavigateLmsTab, onClose, setActiveCourseId, setActiveSite]);
 
   const filteredItems = useMemo(() => {
     if (!query.trim()) return allItems.slice(0, 10);

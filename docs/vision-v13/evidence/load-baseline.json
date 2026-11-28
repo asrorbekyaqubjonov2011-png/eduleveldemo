@@ -1,0 +1,56 @@
+{
+  "scope": "isolated HTTPS fixture",
+  "stages": [
+    {
+      "unavailable": {},
+      "serverTimingP95": {},
+      "concurrency": 4,
+      "requests": 28,
+      "statuses": {
+        "200": 24,
+        "401": 4
+      },
+      "p50Ms": 39,
+      "p95Ms": 101,
+      "requestsPerSecond": 75.4
+    },
+    {
+      "unavailable": {
+        "/api/auth/me SERVER_BUSY": 1
+      },
+      "serverTimingP95": {},
+      "concurrency": 12,
+      "requests": 84,
+      "statuses": {
+        "200": 71,
+        "401": 12,
+        "503": 1
+      },
+      "p50Ms": 46,
+      "p95Ms": 172,
+      "requestsPerSecond": 164.1
+    },
+    {
+      "unavailable": {
+        "/api/auth/me SERVER_BUSY": 2,
+        "/api/db/all SERVER_BUSY": 2,
+        "/api/levels/tests SERVER_BUSY": 3
+      },
+      "serverTimingP95": {},
+      "concurrency": 24,
+      "requests": 168,
+      "statuses": {
+        "200": 137,
+        "401": 24,
+        "503": 7
+      },
+      "p50Ms": 81,
+      "p95Ms": 344,
+      "requestsPerSecond": 179.7
+    }
+  ],
+  "peak": {
+    "rssKiB": 203984
+  },
+  "recovery": 200
+}

@@ -38,6 +38,11 @@ async function voice(browser) {
       const request = window.fetch.bind(window);
       window.fetch = (url, options) => {
         if (url !== '/api/ai-stream') return request(url, options);
+        if (window.fixtureChatResponse) {
+          return Promise.resolve(new Response('Listen to this example. Try the next exercise.', {
+            headers: { 'Content-Type': 'text/plain' },
+          }));
+        }
         return Promise.resolve(new Response(new ReadableStream({
           start(controller) {
             controller.enqueue(new TextEncoder().encode('This is a fixture answer. '.repeat(4)));
@@ -72,6 +77,18 @@ async function voice(browser) {
     assert.equal(await avatar.getAttribute('data-audio-playing'), 'false');
     await dialog.getByRole('button', { name: 'Suhbatni yopish' }).click();
     await dialog.waitFor({ state: 'hidden' });
+    await page.evaluate(() => { window.fixtureChatResponse = true; });
+    await page.getByPlaceholder(/Savol yoki matnni yozing/).fill('Please give an example');
+    await page.getByRole('button', { name: 'Yuborish', exact: true }).click();
+    const listen = page.getByRole('button', { name: 'Tinglash', exact: true }).last();
+    await listen.click();
+    await page.locator('[data-audio-playing="true"] .edubek-audible-mouth').first().waitFor();
+    await shot(page, 'v13-chat-reading-390');
+    await page.getByRole('button', { name: 'Suhbat', exact: true }).click();
+    await dialog.waitFor();
+    assert.equal(await avatar.getAttribute('data-audio-playing'), 'false');
+    await dialog.getByRole('button', { name: 'Suhbatni yopish' }).click();
+    console.log('PASS manual chat playback without automatic voice and cancellation on conversation open');
     console.log('PASS mock STT/AI/TTS: idle, active playback, abort, motion cleanup');
   } finally { await context.close(); }
 }

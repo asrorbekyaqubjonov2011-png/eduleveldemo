@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { AppDatabase, AuditLog } from '../types';
+import { createAdmission } from './db/admission';
 import { getPool } from './db/pool';
 import { ensureBootstrap } from './db/bootstrap';
 import { buildRows, fingerprint, loadDatabase, persistDatabase } from './db/snapshot';
@@ -24,7 +25,7 @@ import { SESSION_COOKIE, resolveSession } from './auth/session';
  * The server runs one process (WEB_CONCURRENCY=1); with several processes this cache must be removed.
  */
 const SNAPSHOT_TTL_MS = 15_000;
-let snapshotCache: { db: AppDatabase; at: number } | null = null;
+let snapshotCache: { db: AppDatabase; baseline: ReturnType<typeof fingerprint>; at: number } | null = null;
 let snapshotGeneration = 0;
 function dropSnapshotCache(): void {
   snapshotGeneration++;
@@ -65,9 +66,8 @@ type Handler<A extends unknown[]> = (req: NextRequest, ...args: A) => Promise<Ne
 
 // Keep spare pool connections for auth, Telegram and other nested database operations.
 // On the free instance a bounded busy response is safer than an unbounded connection queue.
-let activeSnapshots = 0;
+const admission = createAdmission(5, 24, 1800);
 let activeWebhooks = 0;
-const MAX_SNAPSHOTS = 5;
 const MAX_WEBHOOKS = 2;
 const busy = () => NextResponse.json(
   { success: false, code: 'SERVER_BUSY', message: 'Server band. Birozdan so‘ng qayta urinib ko‘ring.' },
@@ -84,16 +84,24 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
         return NextResponse.json({ ok: false }, { status: 403 });
       }
     }
-    if (activeSnapshots >= MAX_SNAPSHOTS || (webhook && activeWebhooks >= MAX_WEBHOOKS)) return busy();
-    activeSnapshots++;
+    if (webhook && activeWebhooks >= MAX_WEBHOOKS) return busy();
     if (webhook) activeWebhooks++;
-    try { return await admitted(req, ...args); }
-    finally {
-      activeSnapshots--;
+    const queued = performance.now();
+    try {
+      const release = await admission.acquire(req.signal, !webhook);
+      if (!release) return busy();
+      try {
+        if (req.signal.aborted) return busy();
+        return await admitted(req, performance.now() - queued, ...args);
+      } finally {
+        release();
+      }
+    } finally {
       if (webhook) activeWebhooks--;
     }
   };
-  async function admitted(req: NextRequest, ...args: A): Promise<NextResponse> {
+  async function admitted(req: NextRequest, queueMs: number, ...args: A): Promise<NextResponse> {
+    const acquireStarted = performance.now();
     let client;
     try {
       const pool = getPool();
@@ -117,6 +125,7 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
     // Level routes use the request transaction for atomic scoring and answer writes.
     const isLevel = /^\/api\/levels\/attempts\/[^/]+\/?$/.test(req.nextUrl.pathname);
     const isRead = !isLevel && (req.method === 'GET' || req.method === 'HEAD' || req.nextUrl.pathname.startsWith('/api/ai/') || isWebhook);
+    const poolMs = performance.now() - acquireStarted;
     const started = Date.now();
     let inTx = false;
     const openTx = async () => {
@@ -149,11 +158,18 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
       const publicAuth = /^\/api\/auth\/(login|register|google)\/?$/.test(req.nextUrl.pathname);
       const session = publicAuth ? null : await resolveSession(client, requestToken(req));
       const generationAtStart = snapshotGeneration;
-      const fresh = snapshotCache && Date.now() - snapshotCache.at < SNAPSHOT_TTL_MS ? snapshotCache : null;
-      const fromCache = isRead && !!fresh;
-      // A cached copy is cloned, so this request's changes never leak into the shared copy.
-      const db: AppDatabase = fromCache ? structuredClone(fresh!.db) : await loadDatabase(client);
-      const baseline = fingerprint(buildRows(db));
+      const fresh = isRead && snapshotCache && Date.now() - snapshotCache.at < SNAPSHOT_TTL_MS ? snapshotCache : null;
+      let queryMs: number | undefined;
+      // Keep the cached baseline read-only. Each handler still gets its own mutable snapshot.
+      const db = fresh ? structuredClone(fresh.db) : await loadDatabase({
+        query: async (sql, params) => {
+          const began = performance.now();
+          const result = await client.query(sql, params);
+          queryMs = performance.now() - began;
+          return result;
+        }
+      });
+      const baseline = fresh?.baseline ?? fingerprint(buildRows(db));
       syncVipGift(db); // after the baseline, so what it changes is saved
       setRoutingConfig(db.aiRouting as never); // the running server follows the owner's saved AI routing
       const loaded = Date.now();
@@ -168,12 +184,22 @@ export function withDatabase<A extends unknown[]>(handler: Handler<A>): Handler<
       }
       if (touched > 0) {
         dropSnapshotCache();
-      } else if (response.status < 400 && !fromCache && generationAtStart === snapshotGeneration) {
+      } else if (response.status < 400 && !fresh && generationAtStart === snapshotGeneration) {
         // Nothing changed: what was loaded is what the database holds, so it can serve the next reads.
-        snapshotCache = { db: structuredClone(db), at: Date.now() };
+        snapshotCache = { db: structuredClone(db), baseline, at: Date.now() };
       }
       // Timing for the bot in the server log: load = reading the data, handle = the bot's work, total = all of it.
       if (isWebhook) console.log(`[telegram] total=${Date.now() - started}ms load=${loaded - started}ms handle=${handled - loaded}ms write=${Date.now() - handled}ms`);
+      if (process.env.EDULEVEL_FIXTURE_TIMING === '1') {
+        response.headers.append('Server-Timing', [
+          `queue;dur=${queueMs.toFixed(1)}`,
+          `pool;dur=${poolMs.toFixed(1)}`,
+          `${fresh ? 'cache' : 'snapshot'};dur=${loaded - started}`,
+          ...(queryMs === undefined ? [] : [`query;dur=${queryMs.toFixed(1)}`]),
+          `handler;dur=${handled - loaded}`,
+          `persist;dur=${Date.now() - handled}`,
+        ].join(', '));
+      }
       return response;
     } catch (err) {
       dropSnapshotCache(); // a failed write may have part-applied: never serve a copy after it

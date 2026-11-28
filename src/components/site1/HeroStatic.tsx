@@ -54,7 +54,7 @@ export function HeroLoading({ error, onRetry }: { error?: boolean; onRetry?: () 
         <img src="/brand/edulevel-mark.webp" alt="" width="34" height="34"/> EduLevel
       </Link>
       <div className="vision-nav-links"><Link href="/ielts-tayyorgarlik">IELTS</Link><Link href="/cefr-tayyorgarlik">CEFR</Link><Link href="/ingliz-tili-darslari">General English</Link></div>
-      <a className="vision-login" href="/#/auth">Kirish <ArrowUpRight size={15} aria-hidden="true"/></a>
+      <Link className="vision-login" href="/#/auth">Kirish <ArrowUpRight size={15} aria-hidden="true"/></Link>
     </nav>
     <HeroStatic/>
     {error && <div className="vision-notice" role="status">Ba’zi ma’lumotlar yuklanmadi. Ochiq darslarni ko‘rishingiz mumkin. {onRetry && <button type="button" onClick={onRetry}>Qayta urinish</button>}</div>}
