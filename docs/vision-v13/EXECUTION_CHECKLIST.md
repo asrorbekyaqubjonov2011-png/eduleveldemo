@@ -13,7 +13,7 @@
 | 09 | AI tezligi | BLOCKED | Gemini model katalogiga qisqa cold discovery budjeti | Tasdiqlangan bepul hisoblar va jonli TTFT p50/p95 |
 | 10 | 8 AI provider benchmark | BLOCKED | Sakkiz adapter sintetik kontrakt sinovidan o‘tdi | Hisob va model bo‘yicha bepul limit dalili |
 | 11 | Free-only mode | IMPLEMENTED | Gemini katalogi va Jev OpenRouter fail-closed | Hisob eligibility va barcha entry point auditi |
-| 12 | Ovozli suhbat | BLOCKED | Bekor qilish, barge-in va bosqichli timing | Qurilma mikrofon va real TTS bilan sinov |
+| 12 | Ovozli suhbat | IMPLEMENTED | Bekor qilish, barge-in, bosqichli timing va chatdan chiqishda mikrofon cleanup fixture sinovi | Qurilma mikrofon va real TTS bilan sinov |
 | 13 | IELTS | INVENTORIED | IELTS Reading va Listening grading fixture, Writing/Speaking no-provider | Jonli Writing/Speaking bahosi hamda audio ijrosi |
 | 14 | CEFR | INVENTORIED | CEFR Reading va Listening grading fixture | A1–B2 bo‘yicha yakuniy mashq, audio va natijalar |
 | 15 | General English | INVENTORIED | Reading grading, mashq API va General English Placement fixture | Grammatika va lug‘at bo‘yicha to‘liq ssenariylar |

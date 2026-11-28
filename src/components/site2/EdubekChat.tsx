@@ -144,6 +144,17 @@ export const EdubekChat: React.FC = () => {
   const animated = eduSettings.animations !== false && localSettings.animations;
   const eduFlag = (key: 'files' | 'stickers' | 'voiceNotes') => eduSettings[key] !== false;
   const voiceNoteRef = useRef<{ rec: MediaRecorder; stream: MediaStream; chunks: Blob[]; sr: any; text: () => string; startedAt: number } | null>(null);
+  const voiceNoteGeneration = useRef(0);
+  useEffect(() => () => {
+    voiceNoteGeneration.current++;
+    const note = voiceNoteRef.current;
+    voiceNoteRef.current = null;
+    if (!note) return;
+    note.rec.onstop = null;
+    try { if (note.rec.state !== 'inactive') note.rec.stop(); } catch { /* recorder already closed */ }
+    try { note.sr?.abort(); } catch { /* recognition already closed */ }
+    note.stream.getTracks().forEach((track) => track.stop());
+  }, []);
   const fileRef = useRef<HTMLInputElement | null>(null);
   // The "more" menu closes on Escape and on any click outside it.
   useEffect(() => {
@@ -541,8 +552,14 @@ export const EdubekChat: React.FC = () => {
   /** Voice note: records the voice; the speech is turned into text and Edubek answers it. */
   const startVoiceNote = async () => {
     if (voiceNoteRef.current || busy) return;
+    const generation = ++voiceNoteGeneration.current;
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (generation !== voiceNoteGeneration.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const chunks: Blob[] = [];
       const rec = new MediaRecorder(stream);
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
@@ -560,7 +577,10 @@ export const EdubekChat: React.FC = () => {
       voiceNoteRef.current = { rec, stream, chunks, sr, text: () => heard.trim(), startedAt: Date.now() };
       setRecording(true);
     } catch {
-      setError('Mikrofonga ruxsat bering, so‘ng ovozli xabar yuboriladi.');
+      stream?.getTracks().forEach((track) => track.stop());
+      if (generation === voiceNoteGeneration.current) {
+        setError('Mikrofonga ruxsat bering, so‘ng ovozli xabar yuboriladi.');
+      }
     }
   };
   const stopVoiceNote = () => {
@@ -568,14 +588,17 @@ export const EdubekChat: React.FC = () => {
     if (!cur) return;
     voiceNoteRef.current = null;
     setRecording(false);
+    const generation = voiceNoteGeneration.current;
     cur.rec.onstop = async () => {
       cur.stream.getTracks().forEach((t) => t.stop());
       try { cur.sr?.stop(); } catch { /* already stopped */ }
       await new Promise((r) => setTimeout(r, 400));
+      if (generation !== voiceNoteGeneration.current) return;
       const blob = new Blob(cur.chunks, { type: cur.rec.mimeType || 'audio/webm' });
       const seconds = Math.max(1, Math.round((Date.now() - cur.startedAt) / 1000));
       const heard = cur.text();
       const url = await uploadChatFile(blob, `ovoz-${Date.now()}.webm`).catch(() => null);
+      if (generation !== voiceNoteGeneration.current) return;
       if (!url) return setError('Ovozli xabarni yuklab bo‘lmadi.');
       if (heard.length >= 3) {
         void send(heard, 'chat', undefined, { shown: heard, kind: 'voice', mediaUrl: url, durationSec: seconds });

@@ -100,7 +100,29 @@ async function voice(browser) {
     await page.locator('main > div.lg\\:hidden > button').click();
     await page.getByRole('button', { name: 'Boshqaruv paneli', exact: true }).click();
     await page.waitForFunction(() => window.fixtureVoiceAborted === true);
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+        getUserMedia: async () => ({
+          getTracks: () => [{ stop: () => { window.fixtureMicStopped = true; } }],
+        }),
+      } });
+      window.MediaRecorder = class {
+        state = 'inactive';
+        mimeType = 'audio/webm';
+        start() { this.state = 'recording'; }
+        stop() { this.state = 'inactive'; this.onstop?.(); }
+      };
+    });
+    await page.locator('main > div.lg\\:hidden > button').click();
+    await page.getByRole('button', { name: 'AI', exact: true }).click();
+    await page.getByRole('button', { name: /^Edubek\b/i }).click();
+    await page.getByRole('button', { name: 'Ovozli xabar yozish' }).click();
+    await page.getByRole('button', { name: 'Ovozni yuborish' }).waitFor();
+    await page.locator('main > div.lg\\:hidden > button').click();
+    await page.getByRole('button', { name: 'Boshqaruv paneli', exact: true }).click();
+    await page.waitForFunction(() => window.fixtureMicStopped === true);
     console.log('PASS leaving EduBek chat cancels a pending AI request');
+    console.log('PASS leaving EduBek chat releases a synthetic microphone stream');
     console.log('PASS manual chat playback without automatic voice and cancellation on conversation open');
     console.log('PASS mock STT/AI/TTS: idle, active playback, abort, motion cleanup');
   } finally { await context.close(); }

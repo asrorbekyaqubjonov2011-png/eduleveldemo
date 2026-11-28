@@ -70,3 +70,5 @@ Oxirgi muddati tugagan urinish ochilganda baho tranzaksiyada saqlanadi. Keyingi 
 - 210 unit, 12 ta education/API ssenariysi, 19 Owner Forms, 12 DB, 20 mashqlar, 15 darslar, 24 yangilik/VIP gift va 15 promo tekshiruvi lokal o‘tdi. ESLint 0 xato va 84 ogohlantirish. TypeScript va production build o‘tdi.
 
 Snapshot keshining `3fe5c79` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46160372219) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46160372209) o‘tdi. SEO preview uchun IndexNow tarmoq va bazaga chiqmasligi unit testda tekshirildi. SEO manager ssenariysi navbatdagi CI ga qo‘shildi.
+
+`013e112` commitida [Verification](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46182249651) va [Integration](https://github.com/asrorbekyaqubjonov2011-png/eduleveldemo/actions/runs/46182249590) o‘tdi. EduBek ovozli xabari uchun Chromium fixture sinovi suhbatdan chiqishda sintetik mikrofon oqimi yopilishini tasdiqladi. Mahalliy 211 unit, TypeScript, build va ESLint 0 xato, 84 ogohlantirish o‘tdi. Haqiqiy qurilma mikrofoni tekshirilmadi.
