@@ -29,7 +29,7 @@ function ensureTable(): Promise<void> {
 }
 
 /** Stores the bytes and returns the site URL that serves them. */
-export async function saveUpload(bytes: Buffer, mime: string, ownerId: string, visibility: 'public' | 'private'): Promise<string> {
+export async function saveUpload(bytes: Buffer, mime: string, ownerId: string, visibility: 'public' | 'private' | 'book'): Promise<string> {
   await ensureTable();
   const id = randomBytes(12).toString('hex');
   await getPool().query(
@@ -41,7 +41,7 @@ export async function saveUpload(bytes: Buffer, mime: string, ownerId: string, v
 
 export interface StoredUpload {
   owner_id: string;
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'private' | 'book';
   mime: string;
   data: Buffer;
 }

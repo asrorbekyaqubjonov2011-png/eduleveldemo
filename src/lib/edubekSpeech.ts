@@ -63,7 +63,7 @@ function playAudio(blob: Blob, text: string, onPlayback?: (playing: boolean) => 
   });
 }
 
-export async function speakSentence(text: string, mood?: string, onPlayback?: (playing: boolean) => void): Promise<void> {
+export async function speakSentence(text: string, mood?: string, onPlayback?: (playing: boolean) => void, onWord?: (letters: number) => void): Promise<void> {
   const clean = text.trim();
   if (!clean) return;
   const epoch = generation;
@@ -74,8 +74,10 @@ export async function speakSentence(text: string, mood?: string, onPlayback?: (p
     if (blob && await playAudio(blob, clean, onPlayback)) return;
   }
   if (epoch !== generation || !canSpeak()) return;
+  markVoice('tts_request', 'browser');
   const u = await makeUtterance(clean, mood);
   if (epoch !== generation) return;
+  markVoice('tts_ready', 'browser');
   await new Promise<void>((resolve) => {
     let settled = false;
     const finish = () => {
@@ -83,7 +85,7 @@ export async function speakSentence(text: string, mood?: string, onPlayback?: (p
       settled = true;
       clearTimeout(timer);
       stops.delete(stop);
-      u.onend = null; u.onerror = null; u.onstart = null;
+      u.onend = null; u.onerror = null; u.onstart = null; u.onboundary = null;
       onPlayback?.(false);
       resolve();
     };
@@ -93,6 +95,9 @@ export async function speakSentence(text: string, mood?: string, onPlayback?: (p
     u.onstart = () => {
       markVoice('audio_play', 'browser');
       onPlayback?.(true);
+    };
+    u.onboundary = (event) => {
+      if (event.name === 'word') onWord?.(event.charLength || clean.slice(event.charIndex).match(/^\S+/)?.[0].length || 1);
     };
     u.onend = finish;
     u.onerror = finish;

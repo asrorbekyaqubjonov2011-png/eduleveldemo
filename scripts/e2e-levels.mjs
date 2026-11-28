@@ -1,3 +1,5 @@
+import fs from "node:fs";
+
 // Level tests (Levelni aniqlash) end-to-end check against a LOCAL or staging server.
 // Usage: BASE=http://localhost:3100 OWNER_USERNAME=jasurbek OWNER_PASSWORD=... node scripts/e2e-levels.mjs
 // Creates a test, questions, a throwaway student and attempts. Do not run against production data.

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { TodayPlan } from './TodayPlan';
 import { VipGiftBanner } from '../ui/VipGiftBanner';
-import { computeStudentAnalytics } from '../../lib/studentAnalytics';
+import { attemptPercent, computeStudentAnalytics } from '../../lib/studentAnalytics';
 import { useApp } from '../../context/AppContext';
 import {
   PlayCircle,
@@ -116,22 +116,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const trackLessons = db.lessons.filter(l => l.track === userTrack);
   const trackCourses = db.courses.filter(c => c.track === userTrack);
 
-  const totalLessons = trackLessons.length || 1;
+  const totalLessons = trackLessons.length;
   const completedCount = (currentUser?.completedLessons || []).filter(lId =>
     trackLessons.some(tl => tl.id === lId)
   ).length;
-  const completionPercentage = Math.round((completedCount / totalLessons) * 100);
+  const completionPercentage = totalLessons ? Math.round((completedCount / totalLessons) * 100) : 0;
 
   const studentAttempts = db.testAttempts.filter(
     a => a.userId === currentUser?.id || (!currentUser && a.userId === 'guest')
   );
   const avgScore = studentAttempts.length > 0
-    ? Math.round(studentAttempts.reduce((acc, a) => acc + (a.percentage || (a.score / a.maxScore * 100)), 0) / studentAttempts.length)
+    ? Math.round(studentAttempts.reduce((acc, a) => acc + attemptPercent(a), 0) / studentAttempts.length)
     : 0;
 
   // Next course & lesson to resume for THIS student track only
   // Continue watching: the most recently played unfinished lesson, otherwise the next incomplete one.
-  const lastWatched = [...(db.lessonProgress || [])]
+  const lastWatched = (db.lessonProgress || []).filter(p => p.userId === currentUser?.id)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((p) => trackLessons.find((l) => l.id === p.lessonId))
     .find((l) => l && !currentUser?.completedLessons?.includes(l.id));
@@ -937,7 +937,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 <Award className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="mt-2 font-display text-[22px] font-extrabold leading-none tabular-nums text-ink dark:text-white">
-                {avgScore > 0 ? `${avgScore}%` : '—'}
+                {studentAttempts.length ? `${avgScore}%` : '—'}
               </div>
               <div className="mt-2 text-[10px] text-ink-muted dark:text-stone-500">
                 {studentAttempts.length} ta topshirilgan sinov

@@ -4,6 +4,7 @@ import { BookOpen, Download, Lock, Eye, X, ChevronLeft, ChevronRight, CheckCircl
 import { Reveal } from '../ui/motion-primitives';
 import { SectionHeader, Button } from '../ui';
 import { cn } from '../ui/styles';
+import { canReadBook } from '../../lib/bookAccess';
 import { DigitalBook } from '../../types';
 
 interface PublicBooksPreviewSectionProps {
@@ -18,17 +19,8 @@ export const PublicBooksPreviewSection: React.FC<PublicBooksPreviewSectionProps>
   const [promptRegisterModal, setPromptRegisterModal] = useState<DigitalBook | null>(null);
 
   const books = db.digitalBooks || [];
-  // For guests: first 4 books are free
-  // For registered free users: first 6 books are free
-  const guestLimit = 4;
-  const registeredLimit = 6;
-
   const handleOpenBook = (book: DigitalBook, index: number) => {
-    if (!currentUser && index >= guestLimit) {
-      setPromptRegisterModal(book);
-      return;
-    }
-    if (currentUser && currentUser.vipTier === 'none' && index >= registeredLimit) {
+    if (!canReadBook(book, index, currentUser)) {
       setPromptRegisterModal(book);
       return;
     }
@@ -77,9 +69,7 @@ ${book.pages.map((p) => `\n--- PAGE ${p.pageNumber}: ${p.title || 'Chapter'} ---
 
         <div className="mt-14 grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4">
           {books.slice(0, 4).map((book, idx) => {
-            const isGuestFree = idx < guestLimit;
-            const isRegisteredFree = idx < registeredLimit;
-            const isLocked = !currentUser ? !isGuestFree : currentUser.vipTier === 'none' ? !isRegisteredFree : false;
+            const isLocked = !canReadBook(book, idx, currentUser);
 
             return (
               <Reveal key={book.id} delay={idx * 70} amount={0.12}>
@@ -109,7 +99,7 @@ ${book.pages.map((p) => `\n--- PAGE ${p.pageNumber}: ${p.title || 'Chapter'} ---
                         {isLocked ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-[#ffd0a3]/40 bg-[#ff8a2b]/90 px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-[#231201] backdrop-blur-md">
                             <Lock className="h-2.5 w-2.5" strokeWidth={2.6} />
-                            <span>Registratsiya</span>
+                            <span>Cheklangan</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/30 bg-emerald-500/90 px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-md">
@@ -133,7 +123,7 @@ ${book.pages.map((p) => `\n--- PAGE ${p.pageNumber}: ${p.title || 'Chapter'} ---
                       <div className="absolute inset-0 flex items-center justify-center bg-ink/35 opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
                         <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-[11.5px] font-bold text-ink shadow-lg">
                           <Eye className="h-3.5 w-3.5 text-[#ef6c12]" />
-                          {isLocked ? "Ro'yxatdan o'tish" : "Saytda O'qish"}
+                          {isLocked ? "Kirish shartlari" : "Saytda O'qish"}
                         </span>
                       </div>
                     </div>
@@ -160,7 +150,7 @@ ${book.pages.map((p) => `\n--- PAGE ${p.pageNumber}: ${p.title || 'Chapter'} ---
                         )}
                       >
                         <Eye className="h-3 w-3" strokeWidth={2.2} />
-                        <span>{isLocked ? "Ochish (Ro'yxat)" : "Saytda O'qish"}</span>
+                        <span>{isLocked ? "Kirish shartlari" : "Saytda O'qish"}</span>
                       </button>
 
                       {book.downloadAllowed && !isLocked && (
@@ -310,18 +300,17 @@ ${book.pages.map((p) => `\n--- PAGE ${p.pageNumber}: ${p.title || 'Chapter'} ---
             </div>
 
             <h3 className="mt-6 font-display text-[21px] font-extrabold leading-tight tracking-[-0.03em] text-ink dark:text-white">
-              Yana 2 Ta Bepul Kitobni Oching!
+              Kitobga kirish
             </h3>
 
             <p className="mx-auto mt-3 max-w-[340px] text-[13px] leading-relaxed text-ink-muted dark:text-stone-400">
-              Siz mehmonlar uchun ajratilgan <strong className="font-bold text-ink dark:text-white">4 ta bepul kitob</strong> kvotasidan foydalanmoqdasiz. Bepul ro'yxatdan o'ting va{' '}
-              <strong className="font-bold text-ink dark:text-white">"{promptRegisterModal.title}"</strong> hamda qolgan kitoblarni darhol oching!
+              «{promptRegisterModal.title}» kitobi uchun kutubxonadagi ruxsat darajasini tekshiring.
             </p>
 
             <div className="mt-6 space-y-2.5 rounded-2xl border border-line/80 bg-white/55 px-4 py-4 text-left dark:border-white/10 dark:bg-white/[0.04]">
               <div className="flex items-center gap-2.5 text-[12px] font-medium text-ink-soft dark:text-stone-300">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#ef6c12] dark:text-[#ffb45c]" strokeWidth={2.4} />
-                <span>Ro'yxatdan o'tganlarga: 6 ta bepul kitob</span>
+                <span>Ro‘yxatdan o‘tgan o‘quvchilar uchun kengaytirilgan kutubxona</span>
               </div>
               <div className="flex items-center gap-2.5 text-[12px] font-medium text-ink-soft dark:text-stone-300">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#ef6c12] dark:text-[#ffb45c]" strokeWidth={2.4} />

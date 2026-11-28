@@ -861,6 +861,13 @@ class ApiService {
     return res.json();
   }
 
+  async updateBookTier(id: string, requiredVIP: string) {
+    const res = await fetch('/api/books/' + encodeURIComponent(id), {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requiredVIP })
+    });
+    return res.json();
+  }
+
   async deleteBook(id: string) {
     const res = await fetch(`/api/books/${id}`, { method: 'DELETE' });
     return res.json();

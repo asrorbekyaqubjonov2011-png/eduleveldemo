@@ -30,7 +30,10 @@ async function voice(browser) {
         abort() { this.stop(); }
       };
       speechSynthesis.getVoices = () => [];
-      speechSynthesis.speak = (utterance) => setTimeout(() => utterance.onstart?.(), 100);
+      speechSynthesis.speak = (utterance) => {
+        window.fixtureUtterance = utterance;
+        setTimeout(() => utterance.onstart?.(), 100);
+      };
       speechSynthesis.cancel = () => {};
       const request = window.fetch.bind(window);
       window.fetch = (url, options) => {
@@ -59,6 +62,10 @@ async function voice(browser) {
     await shot(page, 'v13-voice-idle-390');
     await dialog.getByRole('button', { name: 'Suhbatni boshlash' }).click();
     await dialog.locator('[data-audio-playing="true"] .edubek-audible-mouth').waitFor();
+    await page.evaluate(() => window.fixtureUtterance.onboundary({ name: 'word', charIndex: 0, charLength: 4 }));
+    assert.equal(await avatar.locator('.edubek-audible-mouth').evaluate(el => el.getAnimations().some(a => a.constructor.name === 'Animation')), true);
+    const marks = await page.evaluate(() => window.__edubekMarks.map(({name, t}) => ({name, t})));
+    await fs.writeFile(path.join(output, 'synthetic-voice-timing.json'), JSON.stringify(marks));
     await shot(page, 'v13-voice-playing-390');
     await dialog.getByRole('button', { name: 'Suhbatni to‘xtatish' }).click();
     await page.waitForFunction(() => window.fixtureVoiceAborted === true);

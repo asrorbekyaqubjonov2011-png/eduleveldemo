@@ -1,3 +1,5 @@
+import { canReadBook } from '@/src/lib/bookAccess';
+import { VIP_TIER_RANK } from '@/src/lib/vipAccess';
 import { NextRequest, NextResponse } from 'next/server';
 import { answerTelegramQuestion } from '@/src/lib/telegramTutor';
 import { availableFallbacks } from '@/src/lib/aiRouter';
@@ -341,6 +343,15 @@ async function handleGet(req: NextRequest, { params }: { params: Promise<{ path:
   if (pathParts[0] === 'uploads' && pathParts.length === 2) {
     const stored = await readUpload(pathParts[1]);
     if (!stored) return NextResponse.json({ success: false, message: 'Fayl topilmadi' }, { status: 404 });
+    if (stored.mime === 'application/pdf' && stored.visibility !== 'private') {
+      const auth = getAuth(req);
+      const allowed = (db.digitalBooks || []).some((book, index) =>
+        book.pdfUrl === '/api/uploads/' + pathParts[1] && canReadBook(book, index, auth?.user)
+      );
+      if (auth?.role !== 'owner' && !allowed) {
+        return NextResponse.json({ success: false, message: 'Fayl topilmadi' }, { status: 404 });
+      }
+    }
     if (stored.visibility === 'private') {
       const auth = getAuth(req);
       if (!auth || (auth.role !== 'owner' && auth.userId !== stored.owner_id)) {
@@ -350,7 +361,7 @@ async function handleGet(req: NextRequest, { params }: { params: Promise<{ path:
     return new NextResponse(new Uint8Array(stored.data), {
       headers: {
         'content-type': stored.mime,
-        'cache-control': stored.visibility === 'public' ? 'public, max-age=86400' : 'private, no-store',
+        'cache-control': stored.visibility === 'public' && stored.mime !== 'application/pdf' ? 'public, max-age=86400' : 'private, no-store',
         'x-content-type-options': 'nosniff'
       }
     });
@@ -1106,7 +1117,7 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     const ownerKey = auth ? auth.userId : body.guestKey ? 'guest:' + String(body.guestKey).slice(0, 64) : null;
     if (!db.examSessions) db.examSessions = [];
     const GRACE_MS = 90 * 1000;
-    const findSession = (id: string) => db.examSessions!.find((x) => x.id === id && x.ownerKey === ownerKey);
+    const findSession = (id: string) => db.examSessions!.find((x) => x.id === id && x.ownerKey === ownerKey && x.testId === exam?.id);
 
     // Review an earlier attempt (keys are only revealed to the attempt's owner)
     if (fullPath === 'exams/review') {
@@ -1120,6 +1131,9 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
     }
 
     if (!exam) return NextResponse.json({ success: false, message: 'Test topilmadi' }, { status: 404 });
+    if (exam.kind === 'mock' && auth?.role !== 'owner' && (exam.raw as Test).published === false) {
+      return NextResponse.json({ success: false, message: 'Test topilmadi' }, { status: 404 });
+    }
     if (auth?.role === 'student' && exam.track && auth.user?.track && exam.track !== auth.user.track) {
       return forbidden('Bu test boshqa yo‘nalish uchun.');
     }
@@ -3149,7 +3163,7 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
         return NextResponse.json({ success: false, message: 'PDF hajmi 25 MB dan oshmasligi kerak' }, { status: 413 });
       }
       try {
-        const pdfUrl = await uploadPdf(Buffer.from(pdfPayload, 'base64'), String(filename || 'book'), { ownerId: auth!.userId, visibility: 'public' });
+        const pdfUrl = await uploadPdf(Buffer.from(pdfPayload, 'base64'), String(filename || 'book'), { ownerId: auth!.userId, visibility: 'book' });
         logAudit('Owner', 'UPLOAD', 'Storage', `Yangi PDF yuklandi: ${pdfUrl}`);
         return NextResponse.json({ success: true, url: pdfUrl });
       } catch (err) {
@@ -3243,7 +3257,11 @@ async function handlePost(req: NextRequest, { params }: { params: Promise<{ path
 
   // 25. POST /api/books
   if (fullPath === 'books') {
+    if (body.requiredVIP != null && !Object.hasOwn(VIP_TIER_RANK, body.requiredVIP))
+      return NextResponse.json({ success: false, message: 'Noma’lum VIP tarifi' }, { status: 400 });
     const newBook: DigitalBook = {
+      requiredVIP: body.requiredVIP,
+      track: ['ielts', 'cefr', 'general'].includes(body.track) ? body.track : undefined,
       id: 'book-' + Date.now(),
       title: body.title || 'Yangi Kitob',
       author: body.author || 'Muallif',
@@ -3757,6 +3775,16 @@ async function handlePut(req: NextRequest, { params }: { params: Promise<{ path:
 
   const putAuth = authorize(req, 'PUT', fullPath);
   if (putAuth instanceof NextResponse) return putAuth;
+
+  if (pathParts.length === 2 && pathParts[0] === 'books') {
+    if (putAuth?.role !== 'owner') return forbidden();
+    if (typeof body.requiredVIP !== 'string' || !Object.hasOwn(VIP_TIER_RANK, body.requiredVIP))
+      return NextResponse.json({ success: false, message: 'Noma’lum VIP tarifi' }, { status: 400 });
+    const book = (db.digitalBooks || []).find(book => book.id === pathParts[1]);
+    if (!book) return NextResponse.json({ success: false, message: 'Kitob topilmadi' }, { status: 404 });
+    book.requiredVIP = body.requiredVIP;
+    return NextResponse.json({ success: true, book });
+  }
 
   // PUT /api/student/ai-threads — replaces the caller's chat threads (capped)
   if (fullPath === 'student/ai-threads') {

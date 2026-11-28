@@ -1,5 +1,6 @@
 import { isGiftActive } from '../vipGift';
 import { aiMinutesFor } from '../aiTime';
+import { canReadBook, readerTier } from '../bookAccess';
 import { hasVipAccess } from '../vipAccess';
 import { publicThematicQuestions } from '../exam/thematicGrading';
 import { NextRequest, NextResponse } from 'next/server';
@@ -244,12 +245,10 @@ export function sanitizeDatabase(db: AppDatabase, auth: AuthContext | null): App
   // Unpublished lessons/courses are drafts: students do not receive them.
   // Lesson media (video, PDF, notes) of a VIP course is sent only to viewers whose active tier allows it.
   // The paywall must hold on the server: the client never receives links it is not allowed to open.
-  const viewer = auth?.user as any;
-  const viewerTier = (() => {
-    if (!viewer || !viewer.vipTier) return 'none';
-    if (viewer.vipExpiresAt && Date.parse(viewer.vipExpiresAt) < Date.now()) return 'none';
-    return String(viewer.vipTier);
-  })();
+  const viewerTier = readerTier(auth?.user);
+  out.digitalBooks = (db.digitalBooks || []).map((book, position) =>
+    canReadBook(book, position, auth?.user) ? book : { ...book, pages: [], pdfUrl: '', downloadAllowed: false }
+  );
   const courseTier = new Map<string, string>((db.courses || []).map((c: any) => [c.id, c.requiredVIP || 'none']));
   out.lessons = (db.lessons || [])
     .filter((l: any) => l.isPublished !== false)

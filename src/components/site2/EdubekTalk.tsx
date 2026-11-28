@@ -41,6 +41,8 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
     toneRef.current = tone;
   }, [tone]);
   const openedRef = useRef(false);
+  const faceButton = useRef<HTMLButtonElement>(null);
+  const articulation = useRef<Animation | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [active, setActive] = useState(false);
@@ -257,10 +259,23 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
         return speakSentence(s, m, (playing) => {
           if (turnIdRef.current !== id) return;
           setAudioPlaying(playing);
+          if (!playing) {
+            articulation.current?.cancel();
+            articulation.current = null;
+          }
           if (playing) {
             go('speaking');
             startBargeWatch();
           }
+        }, (letters) => {
+          if (id !== turnIdRef.current || document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          const mouth = faceButton.current?.querySelector('.edubek-audible-mouth');
+          if (!mouth) return;
+          articulation.current?.cancel();
+          articulation.current = mouth.animate(
+            [{ scale: '1 .7' }, { scale: '.82 1.65', offset: .4 }, { scale: '1 .7' }],
+            { duration: Math.min(420, 100 + letters * 35), easing: 'ease-in-out' }
+          );
         });
       },
       () => {
@@ -385,7 +400,7 @@ export const EdubekTalk: React.FC<Props> = ({ turn, onClose, opening, modeTitle,
       </div>
 
       <div className="relative flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-5">
-        <button type="button" onClick={() => (phase === 'speaking' ? bargeIn() : undefined)} aria-label="EduBek ovozini to‘xtatish" disabled={phase !== 'speaking'} className="rounded-[3rem]">
+        <button ref={faceButton} type="button" onClick={() => (phase === 'speaking' ? bargeIn() : undefined)} aria-label="EduBek ovozini to‘xtatish" disabled={phase !== 'speaking'} className="rounded-[3rem]">
           <EdubekAvatar mood={mood} size={240} audioPlaying={audioPlaying} />
         </button>
         {modeTitle ? <span className="rounded-full bg-[#e8457a]/10 px-3 py-1 text-[12px] font-bold text-[#b82a5c]">{modeTitle}</span> : null}

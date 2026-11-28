@@ -26,8 +26,8 @@ function Face({ mood, prefix, audioPlaying }: { mood: EdubekMood; prefix: string
     case 'happy':
       return (
         <g>
-          <path d="M66 76 Q78 60 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
-          <path d="M110 76 Q122 60 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
+          <path className="edubek-eye" d="M66 76 Q78 60 90 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
+          <path className="edubek-eye" d="M110 76 Q122 60 134 76" stroke={CYAN} strokeWidth="5" fill="none" strokeLinecap="round" filter={`url(#${prefix}-glow)`} />
           <path d="M84 94 Q100 118 116 94 Z" fill="#ff7fb0" />
         </g>
       );

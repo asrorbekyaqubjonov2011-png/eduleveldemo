@@ -17,6 +17,7 @@ import {
   Filter
 } from 'lucide-react';
 import { DigitalBook } from '../../types';
+import { canReadBook, readerTier } from '../../lib/bookAccess';
 import { hasVipAccess } from '../../lib/vipAccess';
 
 export const DigitalLibraryView: React.FC = () => {
@@ -36,7 +37,7 @@ export const DigitalLibraryView: React.FC = () => {
   // A book with an uploaded PDF is read in the embedded viewer; its page count comes from the book.
   const isPdfBook = !!readingBook?.pdfUrl;
   const totalPages = readingBook ? (readingBook.pdfUrl ? Math.max(1, readingBook.pageCount || 1) : Math.max(1, readingBook.pages.length)) : 1;
-  const isVip = currentUser?.vipTier && currentUser.vipTier !== 'none' && currentUser.vipTier !== 'free';
+  const isVip = hasVipAccess(readerTier(currentUser), 'start');
   const userTrack = currentUser?.track || 'ielts';
 
   const trackFilteredBooks = books.filter((b) => {
@@ -58,14 +59,9 @@ export const DigitalLibraryView: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleOpenReader = (book: DigitalBook, index: number) => {
-    const hasTierAccess = hasVipAccess(currentUser?.vipTier, book.requiredVIP);
-    if (!hasTierAccess) {
-      alert(`Ushbu kitob faqat [${(book.requiredVIP || 'PRO').toUpperCase()}] yoki undan yuqori VIP obunachilar uchun ochiq. Sizning tarifingiz: ${currentUser?.vipTier?.toUpperCase() || 'ODDIY'}. VIP bo'limidan tarifingizni yangilang!`);
-      return;
-    }
-    if (!isVip && index >= registeredQuota && book.requiredVIP !== 'free') {
-      alert("Ro'yxatdan o'tgan tekin kvotangiz tugagan. Barcha kitoblarni mutolaa qilish uchun VIP tarifga o'ting.");
+  const handleOpenReader = (book: DigitalBook) => {
+    if (!canReadBook(book, books.indexOf(book), currentUser)) {
+      alert('Bu kitob uchun faol VIP obunasi talab qilinadi.');
       return;
     }
     setReadingBook(book);
@@ -187,8 +183,8 @@ ${book.pages.map((p) => `\n=== Page ${p.pageNumber}: ${p.title || ''} ===\n${p.c
 
       {/* Books Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredBooks.map((book, idx) => {
-          const isLocked = !isVip && idx >= registeredQuota;
+        {filteredBooks.map((book) => {
+          const isLocked = !canReadBook(book, books.indexOf(book), currentUser);
           const isRead = currentUser?.readBookIds?.includes(book.id);
 
           return (
@@ -241,14 +237,14 @@ ${book.pages.map((p) => `\n=== Page ${p.pageNumber}: ${p.title || ''} ===\n${p.c
 
               <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2">
                 <button
-                  onClick={() => handleOpenReader(book, idx)}
+                  onClick={() => handleOpenReader(book)}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-90 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>{isLocked ? 'VIP bilan ochish' : "Saytda O'qish"}</span>
                 </button>
 
-                {(book.downloadAllowed || !!book.pdfUrl) && !isLocked && (
+                {(book.downloadAllowed !== false && (book.pdfUrl || book.pages?.length)) && !isLocked && (
                   <button
                     onClick={() => handleDownload(book)}
                     title="Yuklab olish"
@@ -355,9 +351,9 @@ ${book.pages.map((p) => `\n=== Page ${p.pageNumber}: ${p.title || ''} ===\n${p.c
                   <a href={readingBook.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 px-4 text-xs font-bold text-white hover:bg-white/10">
                     <Eye className="h-3.5 w-3.5" /> Yangi oynada ochish
                   </a>
-                  <a href={readingBook.pdfUrl} download className="inline-flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 text-xs font-bold text-white">
+                  {readingBook.downloadAllowed !== false && <a href={readingBook.pdfUrl} download className="inline-flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 text-xs font-bold text-white">
                     <Download className="h-3.5 w-3.5" /> Yuklab olish (PDF)
-                  </a>
+                  </a>}
                 </div>
                 <iframe
                   title={readingBook.title}
